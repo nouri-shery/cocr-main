@@ -1,0 +1,386 @@
+'use client';
+
+import * as React from "react";
+import Link from "next/link";
+import { Menu, ArrowLeft, Clock, PlayCircle, Star, Check } from "lucide-react";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+import {
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Icon3D } from "@/components/homecomponent/icon-sprite";
+import { getCourses } from "../actions/landing_page_actions";
+import { Course, CourseCategory, Faq } from "../types/types";
+import { cn } from "@/lib/utils";
+
+/* ------------------------------------------------------------------ */
+/* دالة دمج الكلاسات (cn)                                            */
+/* ------------------------------------------------------------------ */
+
+
+/* ------------------------------------------------------------------ */
+/* Reveal — ظهور العناصر مع السكرول                                    */
+/* ------------------------------------------------------------------ */
+export function Reveal({
+  children, className, delay = 0, as: Tag = "div",
+}: {
+  children: React.ReactNode; className?: string; delay?: number;
+  as?: React.ElementType;
+}) {
+  const ref = React.useRef<HTMLElement>(null);
+  const [shown, setShown] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setShown(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) { setShown(true); io.disconnect(); }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -70px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <Tag
+      ref={ref}
+      style={{ transitionDelay: `${delay}ms` }}
+      className={cn(
+        "transition-all duration-700 ease-brand motion-reduce:transition-none",
+        shown ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
+        className,
+      )}
+    >
+      {children}
+    </Tag>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Navbar — شريط ثابت في أول الصفحة                                    */
+/* ------------------------------------------------------------------ */
+const NAV_LINKS = [
+  { href: "#top", label: "الرئيسية" },
+  { href: "#sections", label: "أقسام المنصة" },
+  { href: "#journey", label: "الرحلة" },
+  { href: "#courses", label: "الكورسات" },
+  { href: "#stories", label: "قصص" },
+  { href: "#who", label: "مين COCR" },
+];
+
+export function Navbar() {
+  const [open, setOpen] = React.useState(false);
+  const [active, setActive] = React.useState("#top");
+
+  React.useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY + 140;
+      let current = NAV_LINKS[0].href;
+      for (const l of NAV_LINKS) {
+        const el = document.querySelector(l.href) as HTMLElement | null;
+        if (el && el.offsetTop <= y) current = l.href;
+      }
+      setActive(current);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <header className="relative z-50 pb-2 pt-5">
+      <div className="mx-auto max-w-[1200px] px-7">
+        <div className="flex h-[66px] items-center gap-[18px] rounded-full border border-border bg-white ps-5 pe-2.5 shadow-[0_14px_34px_-22px_rgba(22,24,31,.5)]">
+          <Link href="#top" className="flex items-center gap-3 font-display text-[1.3rem] font-extrabold tracking-tight">
+            <span className="relative grid h-[38px] w-[38px] place-items-center rounded-xl bg-gradient-to-br from-[#2E58DE] to-[#16349B] shadow-[0_6px_14px_-6px_rgba(30,69,196,.7)]">
+              <Icon3D name="logo" className="h-[22px] w-[22px]" />
+              <span className="absolute -top-[3px] -end-[3px] h-2.5 w-2.5 rounded-full border-2 border-cream bg-gold" />
+            </span>
+            COCR
+          </Link>
+
+          <nav aria-label="أقسام الصفحة" className="mx-auto hidden items-center gap-0.5 rounded-full bg-border/50 p-[5px] lg:flex">
+            {NAV_LINKS.map((l) => (
+              <Link
+                key={l.href} href={l.href}
+                className={cn(
+                  "rounded-full px-4 py-2 text-[.9rem] font-semibold transition-all",
+                  active === l.href
+                    ? "bg-primary text-primary-foreground shadow-[0_4px_12px_-4px_rgba(30,69,196,.65)]"
+                    : "text-muted-foreground hover:bg-white/80 hover:text-foreground",
+                )}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="hidden items-center gap-3 lg:flex">
+            <Link href="/login" className="text-[.9rem] font-semibold text-muted-foreground transition-colors hover:text-primary">
+              تسجيل الدخول
+            </Link>
+            {/* تم إزالة asChild وتعديل الزر */}
+            <Button size="sm" onClick={() => { window.location.href = '#start'; }}>
+              ابدأ رحلتك
+            </Button>
+          </div>
+
+          <button
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open} aria-controls="mobile-nav" aria-label="فتح القائمة"
+            className="ms-auto rounded-xl border border-border bg-white p-2.5 lg:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
+
+        {open && (
+          <div id="mobile-nav" className="mt-3 flex flex-col gap-1 rounded-[22px] border border-border bg-cream p-3 shadow-[0_24px_50px_-26px_rgba(22,24,31,.6)] lg:hidden">
+            {NAV_LINKS.map((l) => (
+              <Link key={l.href} href={l.href} onClick={() => setOpen(false)}
+                className="rounded-full px-4 py-3 text-center text-[.9rem] font-semibold text-muted-foreground hover:bg-white">
+                {l.label}
+              </Link>
+            ))}
+            <Button className="mt-1" onClick={() => { setOpen(false); window.location.href = '#start'; }}>
+              ابدأ رحلتك
+            </Button>
+          </div>
+        )}
+      </div>
+    </header>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* PassportVisual — الجواز بحركة ختم الشارات                              */
+/* ------------------------------------------------------------------ */
+const BADGES = [
+  { label: "قائد", color: "#E0A02C", rotate: "-9deg", d: "M4 17.5 5.5 7l4.5 4L12 5l2 6 4.5-4L20 17.5zM4.5 20.5h15" },
+  { label: "مشروع", color: "#1E45C4", rotate: "7deg", d: "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5" },
+  { label: "تطوّع", color: "#E0503A", rotate: "-6deg", d: "M4 15.5c3-6 5.5 2 8.5-4S18 6.5 20 8.5" },
+  { label: "تعلّم", color: "#17924F", rotate: "6deg", d: "M5 5.5h5a2.5 2.5 0 0 1 2.5 2.5v10a2.2 2.2 0 0 0-2.2-1.8H5zM19 5.5h-5A2.5 2.5 0 0 0 11.5 8v10a2.2 2.2 0 0 1 2.2-1.8H19z" },
+];
+
+export function PassportVisual() {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [stamped, setStamped] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setStamped(true); return; }
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { setStamped(true); io.disconnect(); }
+    }, { threshold: 0.3 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div className="relative grid place-items-center px-4 py-9">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-3xl [background-image:radial-gradient(circle_at_1px_1px,rgba(22,24,31,.14)_1px,transparent_0)] [background-size:16px_16px] [mask-image:radial-gradient(circle_at_50%_50%,#000_55%,transparent_78%)]"
+      />
+      <div ref={ref}
+        className="relative z-10 w-full max-w-[420px] -rotate-[1.2deg] rounded-[26px] bg-[#1E45C4] p-3 shadow-[16px_20px_0_rgba(22,24,31,.10),0_40px_70px_-34px_rgba(22,24,31,.5)]">
+        <div className="rounded-[18px] border-[1.5px] border-dashed border-white/40 px-5 pb-5 pt-6">
+          <div className="mx-auto mb-4 grid h-[52px] w-[52px] place-items-center rounded-full border-[2.5px] border-white text-white">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" className="h-6 w-6">
+              <path d="m12 4.8 2.2 4.5 5 .7-3.6 3.5.85 4.9L12 16.1l-4.45 2.3.85-4.9-3.6-3.5 5-.7z" />
+            </svg>
+          </div>
+          <div className="text-center font-display text-[1.32rem] font-extrabold tracking-wide text-white">COCR PASSPORT</div>
+          <div className="mb-[22px] mt-0.5 text-center text-[.8rem] font-semibold text-white/70">جواز النمو الطلابي</div>
+
+          <div className="rounded-2xl bg-white p-5">
+            <PassportRow label="الاسم" value="ياسين أحمد" />
+            <PassportRow label="المستوى" value="Contributor — L3" latin />
+
+            <div className="mt-5 grid grid-cols-4 gap-2.5">
+              {BADGES.map((b, i) => (
+                <div key={b.label}
+                  style={{
+                    color: b.color,
+                    transform: stamped ? `scale(1) rotate(${b.rotate})` : `scale(1.9) rotate(${b.rotate})`,
+                    opacity: stamped ? 1 : 0,
+                    transitionDelay: `${600 + i * 200}ms`,
+                  }}
+                  className="grid aspect-square place-content-center justify-items-center gap-px rounded-full border-2 border-current transition-all duration-500 [transition-timing-function:cubic-bezier(.2,1.3,.4,1)] motion-reduce:transition-none">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]">
+                    <path d={b.d} />
+                  </svg>
+                  <b className="text-[.72rem] font-extrabold leading-none">{b.label}</b>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <span className="absolute -start-1.5 top-3 z-20 grid h-[82px] w-[82px] place-content-center rounded-full bg-gold text-center font-display text-base font-extrabold leading-tight text-[#3B2708] shadow-[0_12px_26px_-10px_rgba(22,24,31,.45)]">
+        50+<br />XP
+      </span>
+      <span className="absolute -end-2.5 bottom-3.5 z-20 grid h-[84px] w-[84px] place-content-center justify-items-center gap-1 rounded-full border border-border bg-white text-center font-display text-[.78rem] font-bold shadow-[0_12px_26px_-10px_rgba(22,24,31,.45)]">
+        Verified
+        <Check className="h-5 w-5 text-green" />
+      </span>
+    </div>
+  );
+}
+
+function PassportRow({ label, value, latin }: { label: string; value: string; latin?: boolean }) {
+  return (
+    <div className="mb-3.5 flex items-baseline justify-between gap-3.5 border-b-[1.5px] border-dashed border-border pb-3">
+      <span className={cn("order-1 text-[1.02rem] font-extrabold tracking-tight", latin && "font-display")}>{value}</span>
+      <span className="order-2 text-[.85rem] font-semibold text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* StarRating                                                         */
+/* ------------------------------------------------------------------ */
+export function StarRating({ value }: { value: number }) {
+  return (
+    <span className="flex gap-0.5" aria-label={`التقييم ${value} من 5`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star key={i} className="h-[15px] w-[15px]"
+          fill={value >= i ? "#E9A93C" : value >= i - 0.5 ? "url(#half)" : "#E7E0D4"}
+          stroke="none" />
+      ))}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* CourseGrid — فلاتر + كروت الكورسات                                   */
+/* ------------------------------------------------------------------ */
+const ACCENT: Record<string, { bg: string; fg: string; dot: string }> = {
+  blue: { bg: "#E9EEFC", fg: "#1E45C4", dot: "rgba(30,69,196,.2)" },
+  gold: { bg: "#FBF1DC", fg: "#B8801F", dot: "rgba(184,128,31,.22)" },
+  green: { bg: "#E6F3EB", fg: "#1E7A4E", dot: "rgba(30,122,78,.2)" },
+  ink: { bg: "#E9E7E2", fg: "#3E403F", dot: "rgba(22,24,31,.16)" },
+};
+
+export function CourseGrid({
+  initialCourses, categories,
+}: {
+  initialCourses: Course[];
+  categories: { id: CourseCategory; label: string }[];
+}) {
+  const [courses, setCourses] = React.useState(initialCourses);
+  const [active, setActive] = React.useState<CourseCategory>("all");
+  const [pending, startTransition] = React.useTransition();
+
+  function select(id: CourseCategory) {
+    setActive(id);
+    startTransition(async () => setCourses(await getCourses(id)));
+  }
+
+  return (
+    <>
+      <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap gap-2">
+          {categories.map((c) => (
+            <button key={c.id} onClick={() => select(c.id)}
+              className={cn(
+                "rounded-full border px-4 py-2 text-[.84rem] font-bold transition-all",
+                active === c.id
+                  ? "border-primary bg-primary text-primary-foreground shadow-[0_6px_14px_-6px_rgba(30,69,196,.6)]"
+                  : "border-border bg-white text-slate-600 hover:border-slate-400",
+              )}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+        <Link href="/courses" className="flex items-center gap-2 text-[.94rem] font-bold text-primary">
+          شوف كل الكورسات <ArrowLeft className="h-[18px] w-[18px]" />
+        </Link>
+      </div>
+
+      <div className={cn("grid gap-[22px] transition-opacity sm:grid-cols-2 lg:grid-cols-3", pending && "opacity-60")}>
+        {courses.map((c) => {
+          const a = ACCENT[c.accent];
+          return (
+            <article key={c.id}
+              className="group flex flex-col overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1.5 hover:border-transparent hover:shadow-[0_26px_52px_-26px_rgba(22,24,31,.42)]">
+              <div className="relative grid h-[132px] place-items-center overflow-hidden" style={{ background: a.bg }}>
+                <span aria-hidden className="absolute inset-0"
+                  style={{
+                    backgroundImage: `radial-gradient(circle at 1px 1px, ${a.dot} 1.3px, transparent 0)`,
+                    backgroundSize: "18px 18px",
+                    maskImage: "radial-gradient(circle at 50% 120%, transparent 30%, #000)",
+                    WebkitMaskImage: "radial-gradient(circle at 50% 120%, transparent 30%, #000)",
+                  }} />
+                <Badge className="absolute start-3.5 top-3.5 bg-white shadow-sm" style={{ color: a.fg }}>{c.level}</Badge>
+                {c.free && (
+                  <span className="absolute end-3.5 top-3.5 rounded-full px-3 py-1 text-[.7rem] font-extrabold text-white" style={{ background: a.fg }}>
+                    مجاني
+                  </span>
+                )}
+                <Icon3D name={c.icon} className="relative z-10 h-[66px] w-[66px] transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
+              </div>
+
+              <div className="flex flex-1 flex-col gap-2.5 p-[22px]">
+                <h3 className="text-[1.1rem] font-extrabold leading-relaxed">{c.title}</h3>
+                <p className="flex-1 text-[.9rem] text-muted-foreground">{c.description}</p>
+
+                <div className="flex gap-4 text-[.78rem] font-semibold text-muted-foreground">
+                  <span className="flex items-center gap-1.5"><Clock className="h-[15px] w-[15px]" style={{ color: a.fg }} /> {c.durationWeeks} أسابيع</span>
+                  <span className="flex items-center gap-1.5"><PlayCircle className="h-[15px] w-[15px]" style={{ color: a.fg }} /> {c.lessons} درس</span>
+                </div>
+
+                <div className="flex items-center gap-2.5 border-t border-dashed border-border pt-3">
+                  <StarRating value={c.rating} />
+                  <b className="font-display text-[.92rem] font-extrabold">{c.rating}</b>
+                  <small className="text-[.76rem] font-semibold text-slate-400">({c.reviews} تقييم)</small>
+                </div>
+
+                <Link href={c.href}
+                  className="mt-3.5 flex min-h-[46px] items-center justify-center gap-2 rounded-2xl text-[.92rem] font-extrabold transition-all group-hover:text-white"
+                  style={{ background: a.bg, color: a.fg }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = a.fg; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = a.bg; e.currentTarget.style.color = a.fg; }}>
+                  التفاصيل <ArrowLeft className="h-[18px] w-[18px]" />
+                </Link>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* FaqAccordion                                                       */
+/* ------------------------------------------------------------------ */
+export function FaqAccordion({ faqs }: { faqs: Faq[] }) {
+  return (
+    <Accordion 
+      {...({ type: "single", collapsible: true, defaultValue: faqs[0]?.id ?? "" } as any)}
+      className="mx-auto max-w-[44em]"
+    >
+      {faqs.map((f) => (
+        <AccordionItem key={f.id} value={f.id} className="border-b border-border">
+          <AccordionTrigger className="py-[22px] text-start text-[1.06rem] font-bold hover:no-underline">
+            {f.question}
+          </AccordionTrigger>
+          <AccordionContent className="max-w-[34em] pb-6 text-[.98rem] text-muted-foreground">
+            {f.answer}
+          </AccordionContent>
+        </AccordionItem>
+      ))}
+    </Accordion>
+  );
+}

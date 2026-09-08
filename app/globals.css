@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: hsl(38 40% 96%);
+  --color-foreground: hsl(227 18% 10%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(227 18% 10%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(227 18% 10%);
+  --color-primary: hsl(226 73% 44%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(39 33% 92%);
+  --color-secondary-foreground: hsl(227 18% 10%);
+  --color-muted: hsl(39 33% 92%);
+  --color-muted-foreground: hsl(36 5% 46%);
+  --color-accent: hsl(38 80% 57%);
+  --color-accent-foreground: hsl(30 60% 12%);
+  --color-destructive: hsl(12 71% 55%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+  --color-border: hsl(38 27% 87%);
+  --color-input: hsl(38 27% 87%);
+  --color-ring: hsl(226 73% 44%);
+
+  /* توكنز COCR الإضافية */
+  --color-cream: #FAF7F2;
+  --color-sand: #F3EEE4;
+  --color-gold-600: #B8801F;
+  --color-gold-50: #FBF1DC;
+  --color-gold: #E9A93C;
+  --color-green: #1E7A4E;
+  --color-green-50: #EAF6EF;
+  --color-blue-tint: #EFF1FC;
+  --color-blue-50: #EEF2FE;
+  --color-blue-700: #16349B;
+
+  --color-slate-300: #CFC9BD;
+  --color-slate-400: #A6A199;
+  --color-slate-500: #7B776F;
+  --color-slate-600: #5C5A55;
+
+  --font-sans: var(--font-cairo), system-ui, sans-serif;
+  --font-display: var(--font-inter), system-ui, sans-serif;
+
+  --radius-lg: 0.75rem;
+  --radius-md: calc(0.75rem - 2px);
+  --radius-sm: calc(0.75rem - 4px);
+
+  --ease-brand: cubic-bezier(.2,.75,.25,1);
+}
+
+@layer base {
+  *, ::after, ::before {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+  h1, h2, h3, h4 { text-wrap: balance; }
+  p { text-wrap: pretty; }
+}
+
+/* الباترنز المخصصة لـ COCR بصيغة v4 */
+@utility pattern-dots {
+  background-image: radial-gradient(circle at 1px 1px, rgba(30,69,196,.22) 1.2px, transparent 0);
+  background-size: 24px 24px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+}
+
+@utility pattern-grid {
+  background-image:
+    linear-gradient(rgba(22,24,31,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(22,24,31,.055) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+}
+
+@utility pattern-diag {
+  background: repeating-linear-gradient(-45deg, transparent 0 13px, rgba(22,24,31,.045) 13px 14px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+}
+
+@utility pattern-glow {
+  background:
+    radial-gradient(620px 340px at 88% 6%, rgba(30,69,196,.12), transparent 62%),
+    radial-gradient(520px 300px at 6% 94%, rgba(79,190,139,.13), transparent 60%);
+}
+
+@utility pattern-on-dark {
+  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.16) 1.1px, transparent 0);
+  background-size: 26px 26px;
+}

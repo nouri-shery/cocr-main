@@ -90,3 +90,34 @@ export interface Faq {
   question: string;
   answer: string;
 }
+
+/* ==================================================================== */
+/*  صفحة المنح والفرص                                                    */
+/* ==================================================================== */
+export type OpportunityCategory =
+  | "all" | "competition" | "stem" | "writing" | "speaking" | "leadership";
+
+export type OpportunityFormat = "online" | "offline" | "hybrid";
+
+export interface OpportunityListing {
+  id: string;
+  title: string;
+  organization: string;
+  category: Exclude<OpportunityCategory, "all">;
+  icon: IconName;
+  accent: Accent;
+  ageMin: number;
+  ageMax: number;
+  location: string;
+  format: OpportunityFormat;
+  free: boolean;
+  /** ISO date (YYYY-MM-DD)، أو null لو التقديم مفتوح بدون ديدلاين ثابت */
+  deadline: string | null;
+  description: string;
+  eligibility: string[];
+  tags: string[];
+  officialLink: string;
+  featured?: boolean;
+  /** بيانات تجريبية Seed لحد ما نتأكد منها فعليًا قبل الإطلاق */
+  verified: boolean;
+}

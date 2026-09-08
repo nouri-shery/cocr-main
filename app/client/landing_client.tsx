@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu, ArrowLeft, Clock, PlayCircle, Star, Check } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -72,19 +73,24 @@ const NAV_LINKS = [
   { href: "#sections", label: "أقسام المنصة" },
   { href: "#journey", label: "الرحلة" },
   { href: "#courses", label: "الكورسات" },
+  { href: "/opportunities", label: "المنح والفرص" },
   { href: "#stories", label: "قصص" },
   { href: "#who", label: "مين COCR" },
 ];
 
 export function Navbar() {
   const [open, setOpen] = React.useState(false);
+  const pathname = usePathname();
+  const isHome = pathname === "/";
   const [active, setActive] = React.useState("#top");
 
   React.useEffect(() => {
+    if (!isHome) return;
     const onScroll = () => {
       const y = window.scrollY + 140;
       let current = NAV_LINKS[0].href;
       for (const l of NAV_LINKS) {
+        if (!l.href.startsWith("#")) continue;
         const el = document.querySelector(l.href) as HTMLElement | null;
         if (el && el.offsetTop <= y) current = l.href;
       }
@@ -93,7 +99,9 @@ export function Navbar() {
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [isHome]);
+
+  const isActive = (href: string) => (href.startsWith("#") ? isHome && active === href : pathname.startsWith(href));
 
   return (
     <header className="relative z-50 pb-2 pt-5">
@@ -113,7 +121,7 @@ export function Navbar() {
                 key={l.href} href={l.href}
                 className={cn(
                   "rounded-full px-4 py-2 text-[.9rem] font-semibold transition-all",
-                  active === l.href
+                  isActive(l.href)
                     ? "bg-primary text-primary-foreground shadow-[0_4px_12px_-4px_rgba(30,69,196,.65)]"
                     : "text-muted-foreground hover:bg-white/80 hover:text-foreground",
                 )}

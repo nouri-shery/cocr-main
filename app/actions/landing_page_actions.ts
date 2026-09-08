@@ -151,7 +151,7 @@ export async function getGrowthLadder(): Promise<GrowthRung[]> {
 export async function getFaqs(): Promise<Faq[]> {
   return [
     { id: "who", question: "COCR مناسبة لمين؟",
-      answer: "للطلاب من 15 لـ 25 سنة اللي عايزين يتعلموا، يطبقوا، ويتطوروا وسط مجتمع شبههم." },
+      answer: "للطلاب من 13 لـ 18 سنة اللي عايزين يتعلموا، يطبقوا، ويتطوروا وسط مجتمع شبههم." },
     { id: "courses", question: "هل COCR مجرد كورسات؟",
       answer: "لأ. الكورسات جزء من رحلة أكبر فيها تطبيق، Mentorship، مجتمع، وفرص وتجارب." },
     { id: "npl", question: "يعني إيه Near Peer Learning؟",

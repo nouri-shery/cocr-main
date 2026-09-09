@@ -75,7 +75,7 @@ export function Reveal({
  */
 const NAV_LINKS = [
   { href: "#top", label: "الرئيسية" },
-  { href: "#courses", label: "الكورسات" },
+  { href: "/courses", label: "الكورسات" },
   { href: "/opportunities", label: "الفرص والمنح" },
 ];
 

@@ -24,11 +24,28 @@ import { cn } from "@/lib/utils";
 /* ------------------------------------------------------------------ */
 /* Reveal — ظهور العناصر مع السكرول                                    */
 /* ------------------------------------------------------------------ */
+/**
+ * أنماط الظهور الأربعة زي الملف المرجعي بالظبط:
+ * up (نص/هيدر) — pop (كروت الجريد، سكيل مش سلايد) — left/right (بلوكات غير متماثلة)
+ */
+const REVEAL_HIDDEN: Record<string, string> = {
+  up: "translate-y-6 opacity-0",
+  pop: "scale-95 opacity-0",
+  left: "-translate-x-7 opacity-0",
+  right: "translate-x-7 opacity-0",
+};
+const REVEAL_SHOWN: Record<string, string> = {
+  up: "translate-y-0 opacity-100",
+  pop: "scale-100 opacity-100",
+  left: "translate-x-0 opacity-100",
+  right: "translate-x-0 opacity-100",
+};
+
 export function Reveal({
-  children, className, delay = 0, as: Tag = "div",
+  children, className, delay = 0, as: Tag = "div", variant = "up",
 }: {
   children: React.ReactNode; className?: string; delay?: number;
-  as?: React.ElementType;
+  as?: React.ElementType; variant?: "up" | "pop" | "left" | "right";
 }) {
   const ref = React.useRef<HTMLElement>(null);
   const [shown, setShown] = React.useState(false);
@@ -56,7 +73,7 @@ export function Reveal({
       style={{ transitionDelay: `${delay}ms` }}
       className={cn(
         "transition-all duration-700 ease-brand motion-reduce:transition-none",
-        shown ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
+        shown ? REVEAL_SHOWN[variant] : REVEAL_HIDDEN[variant],
         className,
       )}
     >
@@ -244,6 +261,59 @@ export function PassportVisual() {
       <span className="absolute -end-2.5 bottom-3.5 z-20 grid h-[84px] w-[84px] place-content-center justify-items-center gap-1 rounded-full border border-border bg-white text-center font-display text-[.78rem] font-bold shadow-[0_12px_26px_-10px_rgba(22,24,31,.45)]">
         Verified
         <Check className="h-5 w-5 text-green" />
+      </span>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* JourneyEndVisual — مشهد "نهاية الرحلة" في الـ CTA الأخير                */
+/* ------------------------------------------------------------------ */
+export function JourneyEndVisual() {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [drawn, setDrawn] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setDrawn(true); return; }
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { setDrawn(true); io.disconnect(); }
+    }, { threshold: 0.4 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className="relative mx-auto mb-10 h-[92px] w-full max-w-[520px]">
+      <svg viewBox="0 0 520 92" className="h-full w-full" aria-hidden="true">
+        <path d="M6 18C120 78 220 8 300 52s120 22 214 14" fill="none" stroke="rgba(255,255,255,.28)" strokeWidth="3" strokeLinecap="round" strokeDasharray="1 11" />
+        <path
+          d="M6 18C120 78 220 8 300 52s120 22 214 14"
+          fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round"
+          className={cn("route-path", drawn && "is-drawn")}
+          style={{ "--len": 640 } as React.CSSProperties}
+        />
+        <circle
+          cx="514" cy="66" r="8" fill="#E9A93C" stroke="#fff" strokeWidth="3"
+          className="origin-center transition-all duration-500"
+          style={{ transitionDelay: "1700ms", transform: drawn ? "scale(1)" : "scale(0)", opacity: drawn ? 1 : 0 }}
+        />
+      </svg>
+      <svg
+        viewBox="0 0 48 48" aria-hidden="true"
+        className={cn("absolute -top-1 h-9 w-9 transition-opacity duration-700", drawn && "animate-glide")}
+        style={{ transitionDelay: "300ms", opacity: drawn ? 1 : 0 }}
+      >
+        <path d="M44 6 4 22l16 5z" fill="#FFFFFF" />
+        <path d="M44 6 20 27l2 15z" fill="#DDE4F7" />
+        <path d="M44 6 22 42l6-11z" fill="#B9C7EC" />
+      </svg>
+      <span
+        className="absolute -bottom-1 start-0 text-[.8rem] font-semibold text-white/70 transition-opacity duration-700"
+        style={{ transitionDelay: "2100ms", opacity: drawn ? 1 : 0 }}
+      >
+        نهاية الرحلة… وبداية رحلتك
       </span>
     </div>
   );

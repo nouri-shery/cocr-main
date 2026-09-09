@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Check, X, Info } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { CourseGrid, FaqAccordion, PassportVisual, Reveal } from "../client/landing_client";
+import { CourseGrid, FaqAccordion, PassportVisual, JourneyEndVisual, Reveal } from "../client/landing_client";
 import { Accent } from "../types/types";
 import { getCourseCategories, getCourses, getFaqs, getGrowthLadder, getJourneyPhases, getMentors, getOpportunities, getPlatformSections, getProjects } from "../actions/landing_page_actions";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
@@ -218,7 +218,7 @@ export function WhoSection() {
 
       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {VERBS.map((v, i) => (
-          <Reveal key={v.n} delay={i * 70}>
+          <Reveal key={v.n} delay={i * 70} variant="pop">
             <article className="group relative h-full overflow-hidden rounded-[22px] border border-border bg-white px-6 pb-7 pt-[30px] transition-all duration-300 hover:-translate-y-1 hover:border-transparent hover:shadow-[0_8px_28px_-12px_rgba(22,24,31,.2)]">
               <span aria-hidden className="absolute -start-[46px] -top-[58px] h-[150px] w-[150px] rounded-full transition-transform duration-500 group-hover:scale-125" style={{ background: v.tint }} />
               <span className="absolute end-[22px] top-5 font-display text-2xl font-extrabold leading-none opacity-25" style={{ color: v.accent }}>{v.n}</span>
@@ -254,7 +254,7 @@ export async function JourneySection() {
         {phases.map((p, i) => {
           const t = PHASE_TONE[p.accent];
           return (
-            <Reveal key={p.id} delay={i * 90}>
+            <Reveal key={p.id} delay={i * 90} variant="pop">
               <article className="group flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1.5 hover:border-transparent hover:shadow-[0_22px_50px_-22px_rgba(22,24,31,.3)]">
                 <div className="relative overflow-hidden px-6 pb-6 pt-7" style={{ background: t.bg }}>
                   <span aria-hidden className="absolute inset-0"
@@ -456,7 +456,7 @@ export async function PlatformSectionsBlock() {
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {rest.map((m, i) => (
-          <Reveal key={m.id} delay={i * 60}>
+          <Reveal key={m.id} delay={i * 60} variant="pop">
             <article className="h-full rounded-3xl border border-border bg-white px-6 py-[26px] transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_8px_28px_-12px_rgba(22,24,31,.2)]">
               <Icon3D name={m.icon} className="mb-4 h-[52px] w-[52px]" />
               <h3 className="mb-1 text-[1.12rem] font-extrabold">{m.title}</h3>
@@ -486,7 +486,7 @@ export async function MentorsSection() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {mentors.map((m, i) => (
-          <Reveal key={m.id} delay={i * 80}>
+          <Reveal key={m.id} delay={i * 80} variant="pop">
             <article className="h-full overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_28px_-12px_rgba(22,24,31,.2)]">
               {m.photo ? (
                 <Image src={m.photo} alt={m.name} width={400} height={300} className="aspect-[4/3] w-full object-cover" />
@@ -551,7 +551,7 @@ export async function ProjectsSection() {
       <SectionHead num="08" label="المشاريع" title="النتيجة مش شهادة — النتيجة حاجة بنيتها" />
       <div className="grid gap-6 lg:grid-cols-3">
         {projects.map((p, i) => (
-          <Reveal key={p.id} delay={i * 80}>
+          <Reveal key={p.id} delay={i * 80} variant="pop">
             <article className="h-full overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_28px_-12px_rgba(22,24,31,.2)]">
               {p.shot ? (
                 <Image src={p.shot} alt={p.title} width={400} height={250} className="aspect-[16/10] w-full border-b border-border object-cover" />
@@ -655,7 +655,7 @@ export async function OpportunitiesSection() {
         {opps.map((o, i) => {
           const t = OPP_TONE[o.accent];
           return (
-            <Reveal key={o.id} delay={i * 80}>
+            <Reveal key={o.id} delay={i * 80} variant="pop">
               <article className="relative flex h-full flex-col gap-3 overflow-hidden rounded-3xl border border-border px-[30px] pb-7 pt-[34px] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_28px_-12px_rgba(22,24,31,.2)]"
                 style={{ background: t.bg }}>
                 <span aria-hidden className="absolute inset-0"
@@ -725,19 +725,21 @@ export async function FaqSection() {
 
 export function CtaSection() {
   return (
-    <section id="start" className="relative overflow-hidden bg-primary py-[76px] text-center text-white lg:py-[112px]">
+    <section id="start" className="relative overflow-hidden bg-gradient-to-br from-blue-700 via-primary to-[#0B1633] py-[76px] text-center text-white lg:py-[112px]">
       <span aria-hidden className="pattern-dots pattern-on-dark pointer-events-none absolute inset-0" />
-      <div className="relative z-[2] mx-auto max-w-[36em] px-7">
+      <span aria-hidden className="pointer-events-none absolute -top-40 start-[-10%] h-[420px] w-[420px] rounded-full bg-white/10 blur-3xl" />
+      <div className="relative z-[2] mx-auto max-w-[42em] px-7">
+        <JourneyEndVisual />
         <Reveal as="h2" className="mb-[18px] text-[clamp(1.95rem,3.9vw,2.95rem)] font-extrabold leading-tight tracking-tight">
           متستناش تبقى جاهز 100٪
         </Reveal>
-        <Reveal delay={70} className="mb-9 text-[1.08rem] text-white/85">
+        <Reveal delay={80} className="mx-auto mb-9 max-w-[34em] text-[1.08rem] text-white/85">
           ابدأ، اغلط، ابنِ، واتعرف على ناس جديدة — وخلي كل خطوة تقرّبك من الشخص اللي نفسك تبقى عليه.
         </Reveal>
-        <Reveal delay={140}>
-         <Link href="/register" className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-secondary text-secondary-foreground hover:bg-secondary/80 h-11 px-8">
-  ابدأ رحلتك مع COCR
-</Link>
+        <Reveal delay={160} variant="pop">
+          <Link href="/register" className="inline-flex min-h-[56px] items-center justify-center rounded-xl bg-cream px-8 text-[1.05rem] font-bold text-[#0B1633] shadow-[0_8px_22px_-8px_rgba(0,0,0,.35)] transition-all hover:-translate-y-0.5">
+            ابدأ رحلتك مع COCR
+          </Link>
         </Reveal>
       </div>
     </section>

@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
-  Search, Clock, Radio, PlayCircle, Layers, Star, StarHalf, Users, UserPlus,
+  Search, Clock, Radio, PlayCircle, Layers, Star, StarHalf, Users, UserPlus, X,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +70,12 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
   const [format, setFormat] = React.useState<CourseFormat | "all">("all");
   const [query, setQuery] = React.useState("");
   const [activeId, setActiveId] = React.useState<string | null>(null);
+  const [showSignupAlert, setShowSignupAlert] = React.useState(false);
+
+  React.useEffect(() => {
+    const t = setTimeout(() => setShowSignupAlert(true), 900);
+    return () => clearTimeout(t);
+  }, []);
 
   const mentorById = React.useMemo(
     () => Object.fromEntries(mentors.map((m) => [m.id, m])),
@@ -103,19 +110,7 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
         </div>
       </section>
 
-      {/* سجّل عشان نرشحلك — placeholder ثابت لحد ما يبقى فيه حساب حقيقي */}
-      <div className="mb-12 flex flex-col items-start gap-3 rounded-3xl border border-dashed border-primary/30 bg-blue-tint px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-primary">
-            <UserPlus className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="font-extrabold">سجّل عشان نرشحلك كورسات تناسبك</p>
-            <p className="text-[.85rem] text-muted-foreground">بعد التسجيل هتاخد اختبار بسيط وهنرشحلك كورسات على أساسه.</p>
-          </div>
-        </div>
-        <span className="rounded-full border border-dashed border-primary/40 px-4 py-1.5 text-[.8rem] font-bold text-primary">قريبًا</span>
-      </div>
+      <SignupPrompt show={showSignupAlert} onDismiss={() => setShowSignupAlert(false)} />
 
       {/* كل الكورسات + فلاتر */}
       <h2 className="mb-5 text-[1.3rem] font-extrabold">كل الكورسات</h2>
@@ -336,6 +331,42 @@ function CourseDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * تنبيه دخول قابل للتجاهل — بيظهر لما تدخل الصفحة، مش هيجبر الزائر على حاجة.
+ * الفيتشر نفسه (اختبار + ترشيح كورسات) لسه "قريبًا" لحد ما يبقى فيه حساب حقيقي.
+ */
+function SignupPrompt({ show, onDismiss }: { show: boolean; onDismiss: () => void }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={cn(
+        "fixed inset-x-4 bottom-4 z-40 mx-auto flex max-w-md items-start gap-3 rounded-2xl border border-border bg-white p-4 shadow-[0_20px_50px_-20px_rgba(22,24,31,.35)] transition-all duration-500 sm:inset-x-auto sm:end-6",
+        show ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
+      )}
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-tint text-primary">
+        <UserPlus className="h-5 w-5" />
+      </span>
+      <div className="flex-1">
+        <p className="text-[.9rem] font-extrabold">سجّل عشان نرشحلك كورسات تناسبك</p>
+        <p className="mt-0.5 text-[.8rem] text-muted-foreground">بعد التسجيل هتاخد اختبار بسيط وهنرشحلك كورسات على أساسه.</p>
+        <div className="mt-2.5 flex items-center gap-3">
+          <Link href="/register" onClick={onDismiss} className="text-[.84rem] font-extrabold text-primary hover:underline">
+            سجّل دلوقتي
+          </Link>
+          <button onClick={onDismiss} className="text-[.84rem] font-semibold text-muted-foreground hover:text-foreground">
+            لأ، بعدين
+          </button>
+        </div>
+      </div>
+      <button onClick={onDismiss} aria-label="إغلاق" className="text-slate-400 hover:text-foreground">
+        <X className="h-4 w-4" />
+      </button>
+    </div>
   );
 }
 

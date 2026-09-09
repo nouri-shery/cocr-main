@@ -93,3 +93,26 @@
   background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.16) 1.1px, transparent 0);
   background-size: 26px 26px;
 }
+
+/* مشهد "نهاية الرحلة" في الـ CTA الأخير — منقول حرفيًا من الملف المرجعي */
+.route-path {
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: var(--len);
+}
+.route-path.is-drawn {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 2.2s cubic-bezier(.2,.75,.25,1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes glide {
+    0%, to { transform: translate(0) rotate(-8deg); }
+    50% { transform: translate(10px, -8px) rotate(-2deg); }
+  }
+  .animate-glide {
+    animation: glide 7s ease-in-out infinite;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-path { stroke-dashoffset: 0 !important; }
+}

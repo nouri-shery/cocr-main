@@ -102,12 +102,14 @@ export function Navbar() {
   }, [isHome]);
 
   const isActive = (href: string) => (href.startsWith("#") ? isHome && active === href : pathname.startsWith(href));
+  // روابط الـ hash (زي #courses) لازم تودّي للهوم بيج + الـ hash — مش تتلزّق على مسار الصفحة الحالية
+  const hashHref = (href: string) => (href.startsWith("#") && !isHome ? `/${href}` : href);
 
   return (
     <header className="relative z-50 pb-2 pt-5">
       <div className="mx-auto max-w-[1200px] px-7">
         <div className="flex h-[66px] items-center gap-[18px] rounded-full border border-border bg-white ps-5 pe-2.5 shadow-[0_14px_34px_-22px_rgba(22,24,31,.5)]">
-          <Link href="#top" className="flex items-center gap-3 font-display text-[1.3rem] font-extrabold tracking-tight">
+          <Link href={hashHref("#top")} className="flex items-center gap-3 font-display text-[1.3rem] font-extrabold tracking-tight">
             <span className="relative grid h-[38px] w-[38px] place-items-center rounded-xl bg-gradient-to-br from-[#2E58DE] to-[#16349B] shadow-[0_6px_14px_-6px_rgba(30,69,196,.7)]">
               <Icon3D name="logo" className="h-[22px] w-[22px]" />
               <span className="absolute -top-[3px] -end-[3px] h-2.5 w-2.5 rounded-full border-2 border-cream bg-gold" />
@@ -118,7 +120,7 @@ export function Navbar() {
           <nav aria-label="أقسام الصفحة" className="mx-auto hidden items-center gap-0.5 rounded-full bg-border/50 p-[5px] lg:flex">
             {NAV_LINKS.map((l) => (
               <Link
-                key={l.href} href={l.href}
+                key={l.href} href={hashHref(l.href)}
                 className={cn(
                   "rounded-full px-4 py-2 text-[.9rem] font-semibold transition-all",
                   isActive(l.href)
@@ -136,7 +138,7 @@ export function Navbar() {
               تسجيل الدخول
             </Link>
             {/* تم إزالة asChild وتعديل الزر */}
-            <Button size="sm" onClick={() => { window.location.href = '#start'; }}>
+            <Button size="sm" onClick={() => { window.location.href = hashHref('#start'); }}>
               ابدأ رحلتك
             </Button>
           </div>
@@ -153,12 +155,12 @@ export function Navbar() {
         {open && (
           <div id="mobile-nav" className="mt-3 flex flex-col gap-1 rounded-[22px] border border-border bg-cream p-3 shadow-[0_24px_50px_-26px_rgba(22,24,31,.6)] lg:hidden">
             {NAV_LINKS.map((l) => (
-              <Link key={l.href} href={l.href} onClick={() => setOpen(false)}
+              <Link key={l.href} href={hashHref(l.href)} onClick={() => setOpen(false)}
                 className="rounded-full px-4 py-3 text-center text-[.9rem] font-semibold text-muted-foreground hover:bg-white">
                 {l.label}
               </Link>
             ))}
-            <Button className="mt-1" onClick={() => { setOpen(false); window.location.href = '#start'; }}>
+            <Button className="mt-1" onClick={() => { setOpen(false); window.location.href = hashHref('#start'); }}>
               ابدأ رحلتك
             </Button>
           </div>

@@ -9,6 +9,9 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { cn } from "@/lib/utils";
 import { getDeadlineInfo } from "../lib/opportunity-deadline";
@@ -180,12 +183,17 @@ export function OpportunitiesExplorer({ initialOpportunities, categories }: Oppo
 }
 
 const URGENCY_STYLE: Record<string, string> = {
-  urgent: "bg-destructive/10 text-destructive",
+  urgent: "bg-destructive text-white",
   soon: "bg-gold-50 text-gold-600",
   normal: "bg-blue-tint text-primary",
   open: "bg-green-50 text-green",
   closed: "bg-muted text-muted-foreground",
 };
+
+function orgInitials(name: string) {
+  const words = name.split(/\s+/).filter(Boolean);
+  return (words[0]?.[0] ?? "") + (words[1]?.[0] ?? "");
+}
 
 function OpportunityCard({
   opportunity, saved, onToggleSaved,
@@ -225,7 +233,16 @@ function OpportunityCard({
 
       <div className="flex flex-1 flex-col gap-2.5 p-[22px]">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[.76rem] font-bold text-slate-400">{opportunity.organization}</span>
+          <span className="flex items-center gap-2">
+            <span
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[.68rem] font-extrabold"
+              style={{ background: a.bg, color: a.fg }}
+              aria-hidden
+            >
+              {orgInitials(opportunity.organization)}
+            </span>
+            <span className="text-[.76rem] font-bold text-slate-500">{opportunity.organization}</span>
+          </span>
           <span
             className={cn("flex items-center gap-1 rounded-full px-2.5 py-1 text-[.72rem] font-extrabold", URGENCY_STYLE[deadlineInfo.urgency])}
           >
@@ -241,6 +258,19 @@ function OpportunityCard({
           {opportunity.free && <Badge variant="outline" className="border-green/30 text-green">مجاني</Badge>}
           <Badge variant="outline" className="text-slate-500">{opportunity.ageMin}–{opportunity.ageMax} سنة</Badge>
         </div>
+
+        <Accordion type="single" collapsible>
+          <AccordionItem value="eligibility" className="border-t-0">
+            <AccordionTrigger className="py-1 text-[.82rem]">شروط الأهلية</AccordionTrigger>
+            <AccordionContent>
+              <ul className="list-inside list-disc space-y-1 text-[.82rem] text-muted-foreground">
+                {opportunity.eligibility.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
 
         <div className="flex items-center justify-between gap-2 border-t border-dashed border-border pt-3 text-[.78rem] font-semibold text-muted-foreground">
           <span className="flex items-center gap-1.5">

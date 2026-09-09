@@ -36,10 +36,10 @@ export function Section({
 
 export function SectionHead({
   num, label, title, lead, center,
-}: { num: string; label: string; title: string; lead?: string; center?: boolean }) {
+}: { num?: string; label: string; title: string; lead?: string; center?: boolean }) {
   return (
     <Reveal className={cn("mb-12 lg:mb-[48px]", center && "mx-auto max-w-[44em] text-center")}>
-      <span className="block font-display text-[clamp(2.6rem,5vw,4rem)] font-extrabold leading-[.9] tracking-tighter text-gold-600/40">{num}</span>
+      {num && <span className="block font-display text-[clamp(2.6rem,5vw,4rem)] font-extrabold leading-[.9] tracking-tighter text-gold-600/40">{num}</span>}
       <span className="mb-3.5 mt-2.5 block text-[.75rem] font-extrabold tracking-[.18em] text-gold-600">{label}</span>
       <h2 className={cn("mb-4 max-w-[18em] text-[clamp(1.95rem,3.9vw,2.95rem)] font-extrabold leading-tight tracking-tight", center && "mx-auto")}>{title}</h2>
       {lead && <p className={cn("max-w-[34em] text-[1.12rem] leading-[1.9] text-muted-foreground", center && "mx-auto")}>{lead}</p>}
@@ -757,9 +757,9 @@ export function CtaSection() {
 }
 
 const FOOTER_COLS = [
-  { title: "المنصة", links: [["الرحلة", "#journey"], ["أقسام المنصة", "#sections"], ["المينتورز", "#mentors"], ["الكورسات", "#courses"]] },
-  { title: "الفرص", links: [["الفعاليات", "#opps"], ["المنح", "#opps"], ["التطوع", "#opps"], ["المجتمع", "#stories"]] },
-  { title: "COCR", links: [["مين COCR", "#who"], ["Near Peer Learning", "#nearpeer"], ["الأسئلة", "#faq"], ["تواصل معانا", "/contact"]] },
+  { title: "المنصة", links: [["الرحلة", "/#journey"], ["أقسام المنصة", "/#sections"], ["المينتورز", "/#mentors"], ["الكورسات", "/courses"]] },
+  { title: "الفرص", links: [["الفعاليات", "/opportunities"], ["المنح", "/opportunities"], ["التطوع", "/opportunities"], ["المجتمع", "/#stories"]] },
+  { title: "COCR", links: [["قصتنا", "/about"], ["مين COCR", "/#who"], ["Near Peer Learning", "/#nearpeer"], ["الأسئلة", "/#faq"], ["تواصل معانا", "/contact"]] },
 ];
 
 export function SiteFooter() {

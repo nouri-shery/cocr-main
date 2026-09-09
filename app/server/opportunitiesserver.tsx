@@ -5,6 +5,7 @@ import { OpportunitiesExplorer, ShareButton } from "../client/opportunities_clie
 import { getOpportunities, getOpportunityCategories, getOpportunityById } from "../actions/opportunities_actions";
 import { getDeadlineInfo } from "../lib/opportunity-deadline";
 import { CATEGORY_LABELS } from "../lib/opportunity-categories";
+import { SiteFooter } from "./landingserver";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { Badge } from "@/components/ui/badge";
 import type { OpportunityFormat, OpportunityListing } from "../types/types";
@@ -67,6 +68,7 @@ export async function OpportunitiesPageContent() {
   ]);
 
   return (
+    <>
     <main className="relative overflow-hidden bg-cream pb-[100px] pt-[52px]">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] mx-auto max-w-[1160px] px-7">
@@ -85,6 +87,8 @@ export async function OpportunitiesPageContent() {
         <OpportunitiesExplorer initialOpportunities={opportunities} categories={categories} />
       </div>
     </main>
+    <SiteFooter />
+    </>
   );
 }
 
@@ -100,6 +104,7 @@ export async function OpportunityDetailContent({ id }: { id: string }) {
   const calendarUrl = googleCalendarUrl(opportunity);
 
   return (
+    <>
     <main className="relative overflow-hidden bg-cream pb-[100px] pt-[52px]">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] mx-auto max-w-[820px] px-7">
@@ -204,5 +209,7 @@ export async function OpportunityDetailContent({ id }: { id: string }) {
         </div>
       </div>
     </main>
+    <SiteFooter />
+    </>
   );
 }

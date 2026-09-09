@@ -1,5 +1,6 @@
 import { CoursesExplorer } from "../client/courses_client";
 import { getCourses, getPopularCourses, getCourseCategories, getMentors } from "../actions/landing_page_actions";
+import { SiteFooter } from "./landingserver";
 
 export async function CoursesPageContent() {
   const [popularCourses, allCourses, categories, mentors] = await Promise.all([
@@ -10,6 +11,7 @@ export async function CoursesPageContent() {
   ]);
 
   return (
+    <>
     <main className="relative overflow-hidden bg-cream pb-[100px] pt-[52px]">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] mx-auto max-w-[1160px] px-7">
@@ -33,5 +35,7 @@ export async function CoursesPageContent() {
         />
       </div>
     </main>
+    <SiteFooter />
+    </>
   );
 }

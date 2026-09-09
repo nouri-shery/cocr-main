@@ -124,7 +124,7 @@ export function Navbar() {
   const hashHref = (href: string) => (href.startsWith("#") && !isHome ? `/${href}` : href);
 
   return (
-    <header className="relative z-50 pb-2 pt-5">
+    <header className="sticky top-0 z-50 bg-cream/80 pb-2 pt-5 backdrop-blur-md">
       <div className="mx-auto max-w-[1200px] px-7">
         <div className="flex h-[66px] items-center gap-[18px] rounded-full border border-border bg-white ps-5 pe-2.5 shadow-[0_14px_34px_-22px_rgba(22,24,31,.5)]">
           <Link href={hashHref("#top")} className="flex items-center gap-3 font-display text-[1.3rem] font-extrabold tracking-tight">

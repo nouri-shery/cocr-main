@@ -29,6 +29,7 @@ export async function signInWithGoogle() {
 
 export interface AuthActionResult {
   error: string | null;
+  needsConfirmation?: boolean;
 }
 
 export async function signUpWithEmail(
@@ -45,7 +46,7 @@ export async function signUpWithEmail(
   const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { data: { full_name: name } },
@@ -57,6 +58,11 @@ export async function signUpWithEmail(
       return { error: 'الإيميل ده متسجّل بحساب قبل كده — جرّب تسجّل دخولك.' };
     }
     return { error: 'حصل خطأ، جرّب تاني بعد شوية.' };
+  }
+
+  // لو الأكونت محتاج تأكيد إيميل، Supabase مش بيرجّع سيشن فعلية دلوقتي
+  if (!data.session) {
+    return { error: null, needsConfirmation: true };
   }
 
   redirect('/onboarding');

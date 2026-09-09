@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useActionState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, MailCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
@@ -28,6 +28,21 @@ export default function RegisterPage() {
         </Link>
 
         <div className="rounded-[26px] border border-border bg-white p-8 shadow-[0_20px_50px_-20px_rgba(22,24,31,.25)]">
+          {state.needsConfirmation ? (
+            <div className="flex flex-col items-center gap-3 py-4 text-center">
+              <span className="grid h-14 w-14 place-items-center rounded-full bg-blue-tint text-primary">
+                <MailCheck className="h-7 w-7" />
+              </span>
+              <h1 className="text-[1.25rem] font-extrabold">راجع بريدك الإلكتروني</h1>
+              <p className="text-[.9rem] leading-relaxed text-muted-foreground">
+                بعتنالك رسالة تأكيد — دوس على الرابط جواها عشان تفعّل حسابك، وبعدين سجّل دخولك وابدأ رحلتك.
+              </p>
+              <Link href="/login" className="mt-2 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-[.92rem] font-extrabold text-white">
+                تسجيل الدخول
+              </Link>
+            </div>
+          ) : (
+          <>
           <h1 className="mb-1.5 text-center text-[1.4rem] font-extrabold">أنشئ حسابك</h1>
           <p className="mb-6 text-center text-[.88rem] text-muted-foreground">خطوة واحدة بسيطة، وبعدها نتعرف عليك أكتر.</p>
 
@@ -78,6 +93,8 @@ export default function RegisterPage() {
             عندك حساب؟{" "}
             <Link href="/login" className="font-bold text-primary hover:underline">سجّل دخولك</Link>
           </p>
+          </>
+          )}
         </div>
 
         <Link href="/" className="mt-6 flex items-center justify-center gap-2 text-[.86rem] font-semibold text-muted-foreground hover:text-foreground">

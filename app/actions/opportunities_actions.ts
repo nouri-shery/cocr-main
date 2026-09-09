@@ -1,6 +1,7 @@
 "use server";
 
 import { OpportunityCategory, OpportunityListing } from "../types/types";
+import { CATEGORY_LABELS } from "../lib/opportunity-categories";
 
 /**
  * Seed data — فرص حقيقية اتجابت من بحث خارجي (مش مُختلَقة)، لكنها بيانات
@@ -164,14 +165,6 @@ const OPPORTUNITIES: OpportunityListing[] = [
   },
 ];
 
-const CATEGORY_LABELS: Record<Exclude<OpportunityCategory, "all">, string> = {
-  competition: "مسابقات",
-  stem: "STEM وبحث",
-  writing: "كتابة",
-  speaking: "إلقاء وتحدّث",
-  leadership: "قيادة ومجتمع",
-};
-
 function delay<T>(value: T, ms = 220): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
@@ -195,5 +188,9 @@ export async function getOpportunityCategories(): Promise<{ id: OpportunityCateg
       label: CATEGORY_LABELS[id],
     })),
   ]);
+}
+
+export async function getOpportunityById(id: string): Promise<OpportunityListing | null> {
+  return delay(OPPORTUNITIES.find((o) => o.id === id) ?? null);
 }
 

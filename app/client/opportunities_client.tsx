@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import {
   Bookmark, BookmarkCheck, Search, MapPin, Wifi, Building2, Users2,
-  ExternalLink, AlertTriangle, Clock,
+  ExternalLink, AlertTriangle, Clock, Share2, Check, ArrowUpDown,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +65,25 @@ function useSavedOpportunities() {
   return { saved, toggle };
 }
 
+type SortOption = "deadline-asc" | "deadline-desc" | "alpha";
+
+const SORT_LABEL: Record<SortOption, string> = {
+  "deadline-asc": "الأقرب ديدلاين",
+  "deadline-desc": "الأبعد ديدلاين",
+  alpha: "أبجديًا",
+};
+
+function sortOpportunities(list: OpportunityListing[], sort: SortOption) {
+  const items = [...list];
+  if (sort === "alpha") return items.sort((a, b) => a.title.localeCompare(b.title));
+  return items.sort((a, b) => {
+    if (a.deadline === null && b.deadline === null) return 0;
+    if (a.deadline === null) return 1;
+    if (b.deadline === null) return -1;
+    return sort === "deadline-asc" ? a.deadline.localeCompare(b.deadline) : b.deadline.localeCompare(a.deadline);
+  });
+}
+
 interface OpportunitiesExplorerProps {
   initialOpportunities: OpportunityListing[];
   categories: { id: OpportunityCategory; label: string }[];
@@ -75,10 +94,12 @@ export function OpportunitiesExplorer({ initialOpportunities, categories }: Oppo
   const [format, setFormat] = React.useState<OpportunityFormat | "all">("all");
   const [query, setQuery] = React.useState("");
   const [savedOnly, setSavedOnly] = React.useState(false);
+  const [sort, setSort] = React.useState<SortOption>("deadline-asc");
+  const [sortOpen, setSortOpen] = React.useState(false);
   const { saved, toggle } = useSavedOpportunities();
 
   const filtered = React.useMemo(() => {
-    return initialOpportunities.filter((o) => {
+    const matches = initialOpportunities.filter((o) => {
       const matchesCategory = category === "all" || o.category === category;
       const matchesFormat = format === "all" || o.format === format;
       const matchesQuery =
@@ -89,7 +110,8 @@ export function OpportunitiesExplorer({ initialOpportunities, categories }: Oppo
       const matchesSaved = !savedOnly || saved.includes(o.id);
       return matchesCategory && matchesFormat && matchesQuery && matchesSaved;
     });
-  }, [initialOpportunities, category, format, query, savedOnly, saved]);
+    return sortOpportunities(matches, sort);
+  }, [initialOpportunities, category, format, query, savedOnly, saved, sort]);
 
   const urgentCount = React.useMemo(
     () => initialOpportunities.filter((o) => getDeadlineInfo(o.deadline).urgency === "urgent").length,
@@ -132,7 +154,8 @@ export function OpportunitiesExplorer({ initialOpportunities, categories }: Oppo
         </button>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <span className="text-[.8rem] font-semibold text-slate-500">التصنيف:</span>
         {categories.map((c) => (
           <button
             key={c.id}
@@ -149,22 +172,50 @@ export function OpportunitiesExplorer({ initialOpportunities, categories }: Oppo
         ))}
       </div>
 
-      <div className="mb-7 flex flex-wrap items-center gap-2 border-b border-dashed border-border pb-5">
-        <span className="text-[.8rem] font-semibold text-slate-500">الصيغة:</span>
-        {(["all", "online", "offline", "hybrid"] as const).map((f) => (
+      <div className="mb-7 flex flex-wrap items-center justify-between gap-3 border-b border-dashed border-border pb-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[.8rem] font-semibold text-slate-500">الصيغة:</span>
+          {(["all", "online", "offline", "hybrid"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFormat(f)}
+              className={cn(
+                "rounded-full px-3.5 py-1.5 text-[.8rem] font-semibold transition-colors",
+                format === f
+                  ? "bg-foreground text-background"
+                  : "border border-border text-slate-500 hover:border-slate-400",
+              )}
+            >
+              {f === "all" ? "الكل" : FORMAT_LABEL[f]}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative">
           <button
-            key={f}
-            onClick={() => setFormat(f)}
-            className={cn(
-              "rounded-full px-3.5 py-1.5 text-[.8rem] font-semibold transition-colors",
-              format === f
-                ? "bg-foreground text-background"
-                : "border border-border text-slate-500 hover:border-slate-400",
-            )}
+            onClick={() => setSortOpen((v) => !v)}
+            className="flex items-center gap-1.5 rounded-full border border-border bg-white px-3.5 py-1.5 text-[.8rem] font-semibold text-slate-600 hover:border-slate-400"
           >
-            {f === "all" ? "الكل" : FORMAT_LABEL[f]}
+            <ArrowUpDown className="h-3.5 w-3.5" /> ترتيب: {SORT_LABEL[sort]}
           </button>
-        ))}
+          {sortOpen && (
+            <div className="absolute end-0 top-[calc(100%+6px)] z-10 w-48 overflow-hidden rounded-2xl border border-border bg-white py-1.5 shadow-[0_18px_40px_-18px_rgba(22,24,31,.35)]">
+              {(Object.keys(SORT_LABEL) as SortOption[]).map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => { setSort(opt); setSortOpen(false); }}
+                  className={cn(
+                    "flex w-full items-center justify-between px-4 py-2 text-start text-[.84rem] font-semibold hover:bg-sand",
+                    sort === opt ? "text-primary" : "text-slate-600",
+                  )}
+                >
+                  {SORT_LABEL[opt]}
+                  {sort === opt && <Check className="h-3.5 w-3.5" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -251,7 +302,11 @@ function OpportunityCard({
           </span>
         </div>
 
-        <h3 className="text-[1.05rem] font-extrabold leading-relaxed">{opportunity.title}</h3>
+        <h3 className="text-[1.05rem] font-extrabold leading-relaxed">
+          <Link href={`/opportunities/${opportunity.id}`} className="hover:text-primary">
+            {opportunity.title}
+          </Link>
+        </h3>
         <p className="flex-1 text-[.86rem] leading-relaxed text-muted-foreground">{opportunity.description}</p>
 
         <div className="flex flex-wrap gap-1.5">
@@ -281,18 +336,71 @@ function OpportunityCard({
           </span>
         </div>
 
-        <Link
-          href={opportunity.officialLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-1 flex min-h-[46px] items-center justify-center gap-2 rounded-2xl text-[.9rem] font-extrabold transition-all group-hover:text-white"
-          style={{ background: a.bg, color: a.fg }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = a.fg; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = a.bg; e.currentTarget.style.color = a.fg; }}
-        >
-          قدّم دلوقتي <ExternalLink className="h-4 w-4" />
-        </Link>
+        <div className="mt-1 flex items-center gap-2">
+          <Link
+            href={opportunity.officialLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-2xl text-[.9rem] font-extrabold transition-all group-hover:text-white"
+            style={{ background: a.bg, color: a.fg }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = a.fg; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = a.bg; e.currentTarget.style.color = a.fg; }}
+          >
+            قدّم دلوقتي <ExternalLink className="h-4 w-4" />
+          </Link>
+          <ShareButton title={opportunity.title} url={`/opportunities/${opportunity.id}`} compact />
+        </div>
       </div>
     </article>
+  );
+}
+
+export function ShareButton({
+  title, url, compact,
+}: { title: string; url?: string; compact?: boolean }) {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleShare = async () => {
+    const shareUrl = typeof window !== "undefined"
+      ? new URL(url ?? window.location.pathname, window.location.origin).toString()
+      : (url ?? "");
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title, url: shareUrl });
+        return;
+      } catch {
+        /* المستخدم لغى المشاركة — نكمل عادي */
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* الكليبورد مش متاح — تجاهل بهدوء */
+    }
+  };
+
+  if (compact) {
+    return (
+      <button
+        onClick={handleShare}
+        aria-label="شارك الفرصة"
+        className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-2xl border border-border text-slate-500 transition-colors hover:border-slate-400 hover:text-primary"
+      >
+        {copied ? <Check className="h-4 w-4 text-green" /> : <Share2 className="h-4 w-4" />}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={handleShare}
+      className="flex min-h-[50px] items-center justify-center gap-2 rounded-2xl border border-border px-5 text-[.9rem] font-extrabold text-slate-600 transition-colors hover:border-slate-400"
+    >
+      {copied ? <Check className="h-4 w-4 text-green" /> : <Share2 className="h-4 w-4" />}
+      {copied ? "اتنسخ الرابط!" : "شارك"}
+    </button>
   );
 }

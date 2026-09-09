@@ -8,6 +8,8 @@ export type Accent = "blue" | "gold" | "green" | "ink";
 export type CourseCategory =
   | "all" | "front-end" | "cybersecurity" | "app-dev" | "embedded";
 
+export type CourseFormat = "live" | "recorded" | "hybrid";
+
 export interface Course {
   id: string;
   title: string;
@@ -18,11 +20,21 @@ export interface Course {
   category: Exclude<CourseCategory, "all">;
   durationWeeks: number;
   lessons: number;
-  /** بيانات تجريبية في مرحلة الـ Beta */
+  hours: number;
+  format: CourseFormat;
+  /** عدد الجلسات لايف/حضورية وأونلاين — لو الكورس hybrid */
+  onlineSessions?: number;
+  offlineSessions?: number;
+  /** الفئة العمرية اللي حددها المينتور نفسه للكورس ده */
+  ageMin: number;
+  ageMax: number;
+  mentorId: string;
+  /** بيانات تجريبية Seed — نجوم للعرض بس، مش نظام تقييم حقيقي لسه (قرار الـ Leaders لسه ما اتاخدش) */
   rating: number;
   reviews: number;
   free: boolean;
   href: string;
+  popular?: boolean;
 }
 
 export interface Mentor {
@@ -34,6 +46,9 @@ export interface Mentor {
   photo: string | null;
   accent: Accent;
   initial: string;
+  /** بيانات تجريبية Seed لحد ما يبقى فيه نظام تقييم حقيقي */
+  coursesCount?: number;
+  rating?: number;
 }
 
 export interface JourneyStep {

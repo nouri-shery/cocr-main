@@ -17,43 +17,63 @@ const COURSES: Course[] = [
     id: "fe-basics", title: "أساسيات الـ Front-End",
     description: "تبني أول صفحة كاملة بإيدك من HTML وCSS لحد أول مكوّن تفاعلي.",
     icon: "code", accent: "blue", level: "مبتدئ", category: "front-end",
-    durationWeeks: 6, lessons: 18, rating: 4.8, reviews: 34, free: true, href: "/courses/fe-basics",
+    durationWeeks: 6, lessons: 18, hours: 24, format: "hybrid", onlineSessions: 4, offlineSessions: 2,
+    ageMin: 14, ageMax: 18, mentorId: "youssef",
+    rating: 4.8, reviews: 34, free: true, href: "/courses/fe-basics", popular: true,
   },
   {
     id: "cyber-intro", title: "مقدمة الأمن السيبراني",
     description: "تفهم إزاي الأنظمة بتتخترق قبل ما تتعلم تحميها.",
     icon: "shield", accent: "ink", level: "مبتدئ", category: "cybersecurity",
-    durationWeeks: 5, lessons: 15, rating: 4.7, reviews: 21, free: true, href: "/courses/cyber-intro",
+    durationWeeks: 5, lessons: 15, hours: 20, format: "live", onlineSessions: 5,
+    ageMin: 15, ageMax: 18, mentorId: "menna",
+    rating: 4.7, reviews: 21, free: true, href: "/courses/cyber-intro", popular: true,
   },
   {
     id: "first-app", title: "بناء أول تطبيق موبايل",
     description: "من فكرة على ورقة لتطبيق شغّال على تليفونك.",
     icon: "phone", accent: "green", level: "متوسط", category: "app-dev",
-    durationWeeks: 8, lessons: 24, rating: 4.6, reviews: 19, free: true, href: "/courses/first-app",
+    durationWeeks: 8, lessons: 24, hours: 32, format: "recorded",
+    ageMin: 14, ageMax: 18, mentorId: "yasmin",
+    rating: 4.6, reviews: 19, free: true, href: "/courses/first-app",
   },
   {
     id: "embedded-zero", title: "الأنظمة المدمجة من الصفر",
     description: "تتعامل مع بورد حقيقي وتبني أول مشروع بيتحرّك.",
     icon: "chip", accent: "gold", level: "مبتدئ", category: "embedded",
-    durationWeeks: 7, lessons: 20, rating: 4.5, reviews: 12, free: true, href: "/courses/embedded-zero",
+    durationWeeks: 7, lessons: 20, hours: 28, format: "hybrid", onlineSessions: 3, offlineSessions: 4,
+    ageMin: 15, ageMax: 18, mentorId: "karim",
+    rating: 4.5, reviews: 12, free: true, href: "/courses/embedded-zero",
   },
   {
     id: "git-teams", title: "Git وشغل الفرق",
     description: "تشتغل مع فريق من غير ما تضيّع شغلك ولا شغلهم.",
     icon: "gears", accent: "blue", level: "مبتدئ", category: "front-end",
-    durationWeeks: 3, lessons: 9, rating: 4.9, reviews: 41, free: true, href: "/courses/git-teams",
+    durationWeeks: 3, lessons: 9, hours: 10, format: "recorded",
+    ageMin: 14, ageMax: 18, mentorId: "youssef",
+    rating: 4.9, reviews: 41, free: true, href: "/courses/git-teams", popular: true,
   },
   {
     id: "portfolio", title: "بناء بورتفوليو وعرض شغلك",
     description: "تحوّل مشاريعك لحاجة حد تاني يفهمها في دقيقة.",
     icon: "medal", accent: "gold", level: "متوسط", category: "front-end",
-    durationWeeks: 4, lessons: 12, rating: 4.8, reviews: 27, free: true, href: "/courses/portfolio",
+    durationWeeks: 4, lessons: 12, hours: 14, format: "live", onlineSessions: 4,
+    ageMin: 14, ageMax: 18, mentorId: "youssef",
+    rating: 4.8, reviews: 27, free: true, href: "/courses/portfolio",
   },
 ];
 
 export async function getCourses(category: CourseCategory = "all"): Promise<Course[]> {
   await delay(120);
   return category === "all" ? COURSES : COURSES.filter((c) => c.category === category);
+}
+
+/** أشهر الكورسات — مرتبة بالتقييم والمراجعات، مش بأي منطق شخصي (محتاج حساب مستخدم مش موجود لسه) */
+export async function getPopularCourses(): Promise<Course[]> {
+  await delay(120);
+  return [...COURSES]
+    .sort((a, b) => (b.popular ? 1 : 0) - (a.popular ? 1 : 0) || b.rating - a.rating)
+    .slice(0, 6);
 }
 
 export async function getCourseCategories(): Promise<{ id: CourseCategory; label: string }[]> {
@@ -66,13 +86,21 @@ export async function getCourseCategories(): Promise<{ id: CourseCategory; label
   ];
 }
 
+const MENTORS: Mentor[] = [
+  { id: "youssef", name: "يوسف ط.", track: "Front-End Development", gapLabel: "سبقك بسنة", photo: null, accent: "blue", initial: "ي", coursesCount: 3, rating: 4.8 },
+  { id: "menna", name: "منّة ع.", track: "Cybersecurity", gapLabel: "سبقتك بسنتين", photo: null, accent: "green", initial: "م", coursesCount: 1, rating: 4.7 },
+  { id: "karim", name: "كريم ش.", track: "Embedded Systems", gapLabel: "سبقك بسنة ونص", photo: null, accent: "gold", initial: "ك", coursesCount: 1, rating: 4.5 },
+  { id: "yasmin", name: "ياسمين ك.", track: "App Development", gapLabel: "سبقتك بسنتين ونص", photo: null, accent: "ink", initial: "ي", coursesCount: 1, rating: 4.6 },
+];
+
 export async function getMentors(): Promise<Mentor[]> {
   await delay(80);
-  return [
-    { id: "youssef", name: "يوسف ط.", track: "Front-End Development", gapLabel: "سبقك بسنة", photo: null, accent: "blue", initial: "ي" },
-    { id: "menna", name: "منّة ع.", track: "Cybersecurity", gapLabel: "سبقتك بسنتين", photo: null, accent: "green", initial: "م" },
-    { id: "karim", name: "كريم ش.", track: "Embedded Systems", gapLabel: "سبقك بسنة ونص", photo: null, accent: "gold", initial: "ك" },
-  ];
+  return MENTORS;
+}
+
+export async function getMentorById(id: string): Promise<Mentor | null> {
+  await delay(60);
+  return MENTORS.find((m) => m.id === id) ?? null;
 }
 
 export async function getJourneyPhases(): Promise<JourneyPhase[]> {

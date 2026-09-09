@@ -14,6 +14,7 @@ import {
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { cn } from "@/lib/utils";
 import { getOnboarding, INTEREST_TO_COURSE_CATEGORY } from "../lib/onboarding";
+import { AuthPrompt } from "./auth-prompt";
 import type { Course, CourseCategory, CourseFormat, Mentor } from "../types/types";
 
 const ACCENT: Record<string, { bg: string; fg: string; dot: string }> = {
@@ -64,26 +65,37 @@ interface CoursesExplorerProps {
   allCourses: Course[];
   categories: { id: CourseCategory; label: string }[];
   mentors: Mentor[];
+  isAuthenticated: boolean;
 }
 
-export function CoursesExplorer({ popularCourses, allCourses, categories, mentors }: CoursesExplorerProps) {
+export function CoursesExplorer({ popularCourses, allCourses, categories, mentors, isAuthenticated }: CoursesExplorerProps) {
   const [category, setCategory] = React.useState<CourseCategory>("all");
   const [format, setFormat] = React.useState<CourseFormat | "all">("all");
   const [query, setQuery] = React.useState("");
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [showSignupAlert, setShowSignupAlert] = React.useState(false);
+  const [authPromptOpen, setAuthPromptOpen] = React.useState(false);
   const [interestCategories, setInterestCategories] = React.useState<CourseCategory[] | null>(null);
 
   React.useEffect(() => {
+    if (isAuthenticated) return; // متسجّل فعليًا — مفيش لازمة نضايقه بتنبيه التسجيل
     const onboarding = getOnboarding();
     if (onboarding && onboarding.interests.length > 0) {
       const cats = Array.from(new Set(onboarding.interests.flatMap((i) => INTEREST_TO_COURSE_CATEGORY[i])));
       setInterestCategories(cats);
-      return; // متسجّل ومكمّل الأونبوردينج — مفيش لازمة نضايقه بتنبيه التسجيل
+      return;
     }
     const t = setTimeout(() => setShowSignupAlert(true), 900);
     return () => clearTimeout(t);
-  }, []);
+  }, [isAuthenticated]);
+
+  React.useEffect(() => {
+    if (!isAuthenticated) return;
+    const onboarding = getOnboarding();
+    if (onboarding && onboarding.interests.length > 0) {
+      setInterestCategories(Array.from(new Set(onboarding.interests.flatMap((i) => INTEREST_TO_COURSE_CATEGORY[i]))));
+    }
+  }, [isAuthenticated]);
 
   const recommendedCourses = React.useMemo(() => {
     if (!interestCategories || interestCategories.length === 0) return [];
@@ -213,6 +225,14 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
         mentor={activeCourse ? mentorById[activeCourse.mentorId] : undefined}
         open={activeCourse !== null}
         onOpenChange={(open) => { if (!open) setActiveId(null); }}
+        onStart={() => { if (!isAuthenticated) setAuthPromptOpen(true); }}
+      />
+
+      <AuthPrompt
+        open={authPromptOpen}
+        onOpenChange={setAuthPromptOpen}
+        title="عايز تبدأ الكورس ده؟"
+        description="اعمل حساب مجاني في COCR عشان تقدر تبدأ الكورس، وتتابع تقدّمك فيه."
       />
     </div>
   );
@@ -288,8 +308,8 @@ function CourseCard({
 }
 
 function CourseDialog({
-  course, mentor, open, onOpenChange,
-}: { course: Course | null; mentor?: Mentor; open: boolean; onOpenChange: (open: boolean) => void }) {
+  course, mentor, open, onOpenChange, onStart,
+}: { course: Course | null; mentor?: Mentor; open: boolean; onOpenChange: (open: boolean) => void; onStart: () => void }) {
   if (!course) return null;
   const a = ACCENT[course.accent];
   const FormatIcon = FORMAT_ICON[course.format];
@@ -352,10 +372,11 @@ function CourseDialog({
 
         <DialogFooter>
           <button
+            onClick={onStart}
             className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-2xl text-[.92rem] font-extrabold text-white"
             style={{ background: a.fg }}
           >
-            التفاصيل الكاملة
+            ابدأ الكورس
           </button>
         </DialogFooter>
       </DialogContent>

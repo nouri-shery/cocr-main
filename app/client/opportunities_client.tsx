@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { getDeadlineInfo, type DeadlineUrgency } from "../lib/opportunity-deadline";
 import { CATEGORY_LABELS } from "../lib/opportunity-categories";
 import { getOnboarding, INTEREST_TO_OPPORTUNITY_CATEGORY, INTEREST_TAG_HINTS } from "../lib/onboarding";
+import { AuthPrompt } from "./auth-prompt";
 import type { OpportunityCategory, OpportunityFormat, OpportunityListing } from "../types/types";
 
 const ACCENT: Record<string, { bg: string; fg: string; dot: string }> = {
@@ -81,7 +82,7 @@ function googleCalendarUrl(o: OpportunityListing) {
 
 const SAVE_KEY = "cocr-saved-opportunities";
 
-function useSavedOpportunities() {
+export function useSavedOpportunities() {
   const [saved, setSaved] = React.useState<string[]>([]);
 
   React.useEffect(() => {
@@ -130,9 +131,10 @@ function sortOpportunities(list: OpportunityListing[], sort: SortOption) {
 interface OpportunitiesExplorerProps {
   initialOpportunities: OpportunityListing[];
   categories: { id: OpportunityCategory; label: string }[];
+  isAuthenticated: boolean;
 }
 
-export function OpportunitiesExplorer({ initialOpportunities, categories }: OpportunitiesExplorerProps) {
+export function OpportunitiesExplorer({ initialOpportunities, categories, isAuthenticated }: OpportunitiesExplorerProps) {
   const [category, setCategory] = React.useState<OpportunityCategory>("all");
   const [format, setFormat] = React.useState<OpportunityFormat | "all">("all");
   const [query, setQuery] = React.useState("");
@@ -140,7 +142,13 @@ export function OpportunitiesExplorer({ initialOpportunities, categories }: Oppo
   const [sort, setSort] = React.useState<SortOption>("deadline-asc");
   const [sortOpen, setSortOpen] = React.useState(false);
   const [activeId, setActiveId] = React.useState<string | null>(null);
+  const [authPromptOpen, setAuthPromptOpen] = React.useState(false);
   const { saved, toggle } = useSavedOpportunities();
+
+  const guardedToggle = (id: string) => {
+    if (!isAuthenticated) { setAuthPromptOpen(true); return; }
+    toggle(id);
+  };
   const [interestMatch, setInterestMatch] = React.useState<{ categories: OpportunityCategory[]; tags: string[] } | null>(null);
 
   React.useEffect(() => {
@@ -191,7 +199,7 @@ export function OpportunitiesExplorer({ initialOpportunities, categories }: Oppo
           </div>
           <div className="grid gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
             {recommendedOpportunities.map((o) => (
-              <OpportunityCard key={o.id} opportunity={o} saved={saved.includes(o.id)} onToggleSaved={() => toggle(o.id)} onExpand={() => setActiveId(o.id)} />
+              <OpportunityCard key={o.id} opportunity={o} saved={saved.includes(o.id)} onToggleSaved={() => guardedToggle(o.id)} onExpand={() => setActiveId(o.id)} />
             ))}
           </div>
         </section>
@@ -306,7 +314,7 @@ export function OpportunitiesExplorer({ initialOpportunities, categories }: Oppo
               <OpportunityCard
                 opportunity={o}
                 saved={saved.includes(o.id)}
-                onToggleSaved={() => toggle(o.id)}
+                onToggleSaved={() => guardedToggle(o.id)}
                 onExpand={() => setActiveId(o.id)}
               />
             </Reveal>
@@ -319,6 +327,13 @@ export function OpportunitiesExplorer({ initialOpportunities, categories }: Oppo
         open={activeOpportunity !== null}
         onOpenChange={(open) => { if (!open) setActiveId(null); }}
       />
+
+      <AuthPrompt
+        open={authPromptOpen}
+        onOpenChange={setAuthPromptOpen}
+        title="عايز تفتكر الفرصة دي؟"
+        description="اعمل حساب مجاني في COCR واحفظ الفرص اللي تهمك عشان ترجع لها في أي وقت."
+      />
     </div>
   );
 }
@@ -328,7 +343,7 @@ function orgInitials(name: string) {
   return (words[0]?.[0] ?? "") + (words[1]?.[0] ?? "");
 }
 
-function OpportunityCard({
+export function OpportunityCard({
   opportunity, saved, onToggleSaved, onExpand,
 }: { opportunity: OpportunityListing; saved: boolean; onToggleSaved: () => void; onExpand: () => void }) {
   const a = ACCENT[opportunity.accent];

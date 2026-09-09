@@ -6,6 +6,7 @@ import { getOpportunities, getOpportunityCategories, getOpportunityById } from "
 import { getDeadlineInfo } from "../lib/opportunity-deadline";
 import { CATEGORY_LABELS } from "../lib/opportunity-categories";
 import { SiteFooter } from "./landingserver";
+import { getCurrentUser } from "@/lib/supabase/get-user";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { Badge } from "@/components/ui/badge";
 import type { OpportunityFormat, OpportunityListing } from "../types/types";
@@ -62,9 +63,10 @@ function googleCalendarUrl(o: OpportunityListing) {
 }
 
 export async function OpportunitiesPageContent() {
-  const [opportunities, categories] = await Promise.all([
+  const [opportunities, categories, user] = await Promise.all([
     getOpportunities(),
     getOpportunityCategories(),
+    getCurrentUser().catch(() => null),
   ]);
 
   return (
@@ -84,7 +86,7 @@ export async function OpportunitiesPageContent() {
           </p>
         </div>
 
-        <OpportunitiesExplorer initialOpportunities={opportunities} categories={categories} />
+        <OpportunitiesExplorer initialOpportunities={opportunities} categories={categories} isAuthenticated={!!user} />
       </div>
     </main>
     <SiteFooter />

@@ -97,7 +97,9 @@ const NAV_LINKS = [
   { href: "/about", label: "قصتنا" },
 ];
 
-export function Navbar() {
+export function Navbar({
+  isAuthenticated = false, displayName = null,
+}: { isAuthenticated?: boolean; displayName?: string | null } = {}) {
   const [open, setOpen] = React.useState(false);
   const pathname = usePathname();
   const isHome = pathname === "/";
@@ -153,13 +155,28 @@ export function Navbar() {
           </nav>
 
           <div className="hidden items-center gap-3 lg:flex">
-            <Link href="/login" className="text-[.9rem] font-semibold text-muted-foreground transition-colors hover:text-primary">
-              تسجيل الدخول
-            </Link>
-            {/* تم إزالة asChild وتعديل الزر */}
-            <Button size="sm" onClick={() => { window.location.href = hashHref('#start'); }}>
-              ابدأ رحلتك
-            </Button>
+            {isAuthenticated ? (
+              <>
+                <Link href="/saved" className="text-[.9rem] font-semibold text-muted-foreground transition-colors hover:text-primary">
+                  المفتكرة
+                </Link>
+                <Link href="/profile" className="text-[.9rem] font-semibold text-muted-foreground transition-colors hover:text-primary">
+                  {displayName ? `أهلًا يا ${displayName.split(" ")[0]}` : "بياناتك"}
+                </Link>
+                <Button size="sm" onClick={() => { window.location.href = "/dashboard"; }}>
+                  لوحة التحكم
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="text-[.9rem] font-semibold text-muted-foreground transition-colors hover:text-primary">
+                  تسجيل الدخول
+                </Link>
+                <Button size="sm" onClick={() => { window.location.href = "/register"; }}>
+                  ابدأ رحلتك
+                </Button>
+              </>
+            )}
           </div>
 
           <button
@@ -179,9 +196,31 @@ export function Navbar() {
                 {l.label}
               </Link>
             ))}
-            <Button className="mt-1" onClick={() => { setOpen(false); window.location.href = hashHref('#start'); }}>
-              ابدأ رحلتك
-            </Button>
+            {isAuthenticated ? (
+              <>
+                <Link href="/saved" onClick={() => setOpen(false)}
+                  className="rounded-full px-4 py-3 text-center text-[.9rem] font-semibold text-muted-foreground hover:bg-white">
+                  المفتكرة
+                </Link>
+                <Link href="/profile" onClick={() => setOpen(false)}
+                  className="rounded-full px-4 py-3 text-center text-[.9rem] font-semibold text-muted-foreground hover:bg-white">
+                  بياناتك
+                </Link>
+                <Button className="mt-1" onClick={() => { setOpen(false); window.location.href = "/dashboard"; }}>
+                  لوحة التحكم
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setOpen(false)}
+                  className="rounded-full px-4 py-3 text-center text-[.9rem] font-semibold text-muted-foreground hover:bg-white">
+                  تسجيل الدخول
+                </Link>
+                <Button className="mt-1" onClick={() => { setOpen(false); window.location.href = "/register"; }}>
+                  ابدأ رحلتك
+                </Button>
+              </>
+            )}
           </div>
         )}
       </div>

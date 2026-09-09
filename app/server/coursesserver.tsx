@@ -1,13 +1,15 @@
 import { CoursesExplorer } from "../client/courses_client";
 import { getCourses, getPopularCourses, getCourseCategories, getMentors } from "../actions/landing_page_actions";
 import { SiteFooter } from "./landingserver";
+import { getCurrentUser } from "@/lib/supabase/get-user";
 
 export async function CoursesPageContent() {
-  const [popularCourses, allCourses, categories, mentors] = await Promise.all([
+  const [popularCourses, allCourses, categories, mentors, user] = await Promise.all([
     getPopularCourses(),
     getCourses(),
     getCourseCategories(),
     getMentors(),
+    getCurrentUser().catch(() => null),
   ]);
 
   return (
@@ -32,6 +34,7 @@ export async function CoursesPageContent() {
           allCourses={allCourses}
           categories={categories}
           mentors={mentors}
+          isAuthenticated={!!user}
         />
       </div>
     </main>

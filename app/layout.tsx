@@ -41,6 +41,7 @@ import { Cairo, Inter } from "next/font/google";
 import "./globals.css";
 import { IconSprite } from "@/components/homecomponent/icon-sprite";
 import { Navbar } from "./client/landing_client";
+import { getCurrentUser } from "@/lib/supabase/get-user";
 
 const cairo = Cairo({ subsets: ["arabic", "latin"], weight: ["400","500","600","700","800","900"], variable: "--font-cairo" });
 const inter = Inter({ subsets: ["latin"], weight: ["400","500","600","700","800"], variable: "--font-inter" });
@@ -50,12 +51,15 @@ export const metadata: Metadata = {
   description: "منظومة تعليمية للطلاب مبنية على Near Peer Learning: رحلة واضحة، مينتور سبقك بسنة، ومشروع تطلع بيه.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser().catch(() => null);
+  const displayName = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? null;
+
   return (
     <html lang="ar" dir="rtl" className={`${cairo.variable} ${inter.variable}`}>
       <body className="overflow-x-hidden antialiased">
         <IconSprite />
-        <Navbar />
+        <Navbar isAuthenticated={!!user} displayName={displayName} />
        <NextIntlClientProvider>{children}</NextIntlClientProvider>
       </body>
     </html>

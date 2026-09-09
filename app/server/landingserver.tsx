@@ -6,6 +6,7 @@ import { CourseGrid, FaqAccordion, PassportVisual, Reveal } from "../client/land
 import { Accent } from "../types/types";
 import { getCourseCategories, getCourses, getFaqs, getGrowthLadder, getJourneyPhases, getMentors, getOpportunities, getPlatformSections, getProjects } from "../actions/landing_page_actions";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
+import { MENTOR_ILLUSTRATIONS } from "@/components/homecomponent/mentor-illustrations";
 import { cn } from "@/lib/utils";
 
 /* ================================================================== */
@@ -489,6 +490,10 @@ export async function MentorsSection() {
             <article className="h-full overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_28px_-12px_rgba(22,24,31,.2)]">
               {m.photo ? (
                 <Image src={m.photo} alt={m.name} width={400} height={300} className="aspect-[4/3] w-full object-cover" />
+              ) : MENTOR_ILLUSTRATIONS[m.id] ? (
+                <div className="aspect-[4/3] w-full overflow-hidden">
+                  {(() => { const Illustration = MENTOR_ILLUSTRATIONS[m.id]; return <Illustration />; })()}
+                </div>
               ) : (
                 <div className={cn("grid aspect-[4/3] place-items-center bg-gradient-to-br text-[2.6rem] font-extrabold text-white", MENTOR_BG[m.accent])}>
                   {m.initial}

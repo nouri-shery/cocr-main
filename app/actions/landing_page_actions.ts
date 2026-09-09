@@ -71,7 +71,7 @@ export async function getMentors(): Promise<Mentor[]> {
   return [
     { id: "youssef", name: "يوسف ط.", track: "Front-End Development", gapLabel: "سبقك بسنة", photo: null, accent: "blue", initial: "ي" },
     { id: "menna", name: "منّة ع.", track: "Cybersecurity", gapLabel: "سبقتك بسنتين", photo: null, accent: "green", initial: "م" },
-    { id: "karim", name: "كريم ش.", track: "Embedded Systems", gapLabel: "سبقك بسنة ونص", photo: null, accent: "ink", initial: "ك" },
+    { id: "karim", name: "كريم ش.", track: "Embedded Systems", gapLabel: "سبقك بسنة ونص", photo: null, accent: "gold", initial: "ك" },
   ];
 }
 

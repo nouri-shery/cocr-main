@@ -711,7 +711,7 @@ export async function GrowthSection() {
               <span className="text-[.78rem] text-muted-foreground">{r.description}</span>
             </div>
             {i < rungs.length - 1 && (
-              <ArrowLeft className="my-2 h-7 w-7 rotate-90 text-primary lg:my-0 lg:rotate-0" />
+              <ArrowLeft className="my-2 h-7 w-7 -rotate-90 text-primary lg:my-0 lg:rotate-0" />
             )}
           </Reveal>
         ))}

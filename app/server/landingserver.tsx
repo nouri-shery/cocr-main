@@ -477,44 +477,52 @@ const MENTOR_BG: Record<Accent, string> = {
   green: "from-[#86D9AE] to-[#1E7A4E]", ink: "from-[#A6A199] to-[#3E403F]",
 };
 
+const MENTOR_CARD_OFFSET = ["", "sm:mt-8", "sm:mt-4"];
+
 export async function MentorsSection() {
   const mentors = await getMentors();
   return (
     <Section id="mentors">
-      <SectionHead num="06" label="المينتورز" title="مش أساتذة — خرّيجين الرحلة اللي أنت فيها"
-        lead="كل واحد فيهم خلّص نفس المسار وبقى بيراجع للي بعده." />
+      <div className="grid gap-10 lg:grid-cols-[.9fr_1.1fr] lg:items-center lg:gap-16">
+        <SectionHead num="06" label="المينتورز" title="مش أساتذة — خرّيجين الرحلة اللي أنت فيها"
+          lead="كل واحد فيهم خلّص نفس المسار وبقى بيراجع للي بعده." />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {mentors.map((m, i) => (
-          <Reveal key={m.id} delay={i * 80} variant="pop">
-            <article className="h-full overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_28px_-12px_rgba(22,24,31,.2)]">
-              {m.photo ? (
-                <Image src={m.photo} alt={m.name} width={400} height={300} className="aspect-[4/3] w-full object-cover" />
-              ) : MENTOR_ILLUSTRATIONS[m.id] ? (
-                <div className="aspect-[4/3] w-full overflow-hidden">
-                  {(() => { const Illustration = MENTOR_ILLUSTRATIONS[m.id]; return <Illustration />; })()}
+        <div className="grid gap-6 sm:grid-cols-3">
+          {mentors.map((m, i) => (
+            <Reveal key={m.id} delay={i * 90} variant="pop" className={MENTOR_CARD_OFFSET[i] ?? ""}>
+              <article className="h-full overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_18px_38px_-20px_rgba(22,24,31,.32)]">
+                {m.photo ? (
+                  <Image src={m.photo} alt={m.name} width={400} height={300} className="aspect-[4/3] w-full object-cover" />
+                ) : MENTOR_ILLUSTRATIONS[m.id] ? (
+                  <div className="aspect-[4/3] w-full overflow-hidden">
+                    {(() => { const Illustration = MENTOR_ILLUSTRATIONS[m.id]; return <Illustration />; })()}
+                  </div>
+                ) : (
+                  <div className={cn("grid aspect-[4/3] place-items-center bg-gradient-to-br text-[2.6rem] font-extrabold text-white", MENTOR_BG[m.accent])}>
+                    {m.initial}
+                  </div>
+                )}
+                <div className="px-5 pb-6 pt-5">
+                  <b className="block text-[1.02rem] font-extrabold">{m.name}</b>
+                  <div className="mb-3.5 font-display text-[.82rem] text-muted-foreground">{m.track}</div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-[.76rem] font-bold text-green">
+                    <Check className="h-3.5 w-3.5" /> {m.gapLabel}
+                  </span>
                 </div>
-              ) : (
-                <div className={cn("grid aspect-[4/3] place-items-center bg-gradient-to-br text-[2.6rem] font-extrabold text-white", MENTOR_BG[m.accent])}>
-                  {m.initial}
-                </div>
-              )}
-              <div className="px-[22px] pb-6 pt-5">
-                <b className="block text-[1.08rem] font-extrabold">{m.name}</b>
-                <div className="mb-3.5 font-display text-[.85rem] text-muted-foreground">{m.track}</div>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3.5 py-1.5 text-[.78rem] font-bold text-green">
-                  <Check className="h-4 w-4" /> {m.gapLabel}
-                </span>
-              </div>
-            </article>
-          </Reveal>
-        ))}
+              </article>
+            </Reveal>
+          ))}
+        </div>
       </div>
 
-      <Reveal delay={200} className="mt-9">
+      <Reveal delay={160} className="mt-10 flex flex-wrap items-center gap-4">
         <Link href="/mentors" className="group inline-flex items-center gap-2 text-[.94rem] font-bold text-primary">
-          قابل كل المينتورز <ArrowLeft className="h-[18px] w-[18px] transition-transform group-hover:-translate-x-1" />
+          قابل المينتورز <ArrowLeft className="h-[18px] w-[18px] transition-transform group-hover:-translate-x-1" />
         </Link>
+        <span className="inline-flex items-center gap-2 rounded-full border border-dashed border-border bg-white px-[18px] py-2 text-[.8rem] font-semibold text-muted-foreground">
+          <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+          نماذج توضيحية لشكل ملف المينتور
+        </span>
       </Reveal>
     </Section>
   );
@@ -690,12 +698,14 @@ export async function GrowthSection() {
       <SectionHead center num="11" label="هتبقى مين" title="النهارده بتتعلم... بكرة أنت اللي بتعلّم"
         lead="ده مش شعار — ده إزاي المنصة بتشتغل. المينتور بتاعك كان طالب هنا." />
 
-      <Reveal className="flex flex-col items-center justify-center gap-4 lg:flex-row lg:gap-1">
+      <div className="flex flex-col items-center justify-center gap-4 lg:flex-row lg:gap-1">
         {rungs.map((r, i) => (
-          <div key={r.id} className="flex flex-col items-center lg:flex-row">
+          <Reveal key={r.id} delay={i * 110} variant="pop" className="flex flex-col items-center lg:flex-row">
             <div className={cn(
-              "min-w-[142px] rounded-3xl border border-border bg-white px-[22px] py-[18px] text-center shadow-sm",
-              r.final && "bg-gradient-to-br from-[#FBF1DC] to-[#F5E4C4]",
+              "min-w-[148px] rounded-3xl border px-[22px] py-[18px] text-center shadow-sm transition-transform duration-300 hover:-translate-y-1",
+              r.final
+                ? "border-gold-600/30 bg-gradient-to-br from-gold-50 to-[#F5E4C4]"
+                : "border-border bg-white",
             )}>
               <b className="block font-display text-[1.05rem] font-bold" dir="ltr">{r.label}</b>
               <span className="text-[.78rem] text-muted-foreground">{r.description}</span>
@@ -703,9 +713,9 @@ export async function GrowthSection() {
             {i < rungs.length - 1 && (
               <ArrowLeft className="my-2 h-7 w-7 rotate-90 text-primary lg:my-0 lg:rotate-0" />
             )}
-          </div>
+          </Reveal>
         ))}
-      </Reveal>
+      </div>
     </Section>
   );
 }

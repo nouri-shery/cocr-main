@@ -102,8 +102,8 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
       <section className="mb-12">
         <h2 className="mb-5 text-[1.3rem] font-extrabold">أشهر الكورسات</h2>
         <div className="grid gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
-          {popularCourses.map((c) => (
-            <Reveal key={c.id}>
+          {popularCourses.map((c, i) => (
+            <Reveal key={c.id} delay={Math.min(i, 5) * 60}>
               <CourseCard course={c} mentor={mentorById[c.mentorId]} onExpand={() => setActiveId(c.id)} />
             </Reveal>
           ))}
@@ -167,8 +167,8 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
         </p>
       ) : (
         <div className="grid gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((c) => (
-            <Reveal key={c.id}>
+          {filtered.map((c, i) => (
+            <Reveal key={c.id} delay={Math.min(i, 5) * 60}>
               <CourseCard course={c} mentor={mentorById[c.mentorId]} onExpand={() => setActiveId(c.id)} />
             </Reveal>
           ))}
@@ -397,7 +397,7 @@ function Reveal({ children }: { children: React.ReactNode }) {
       ref={ref}
       className={cn(
         "h-full transition-all duration-700 ease-[cubic-bezier(.2,.75,.25,1)] motion-reduce:transition-none",
-        shown ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
+        shown ? "scale-100 opacity-100" : "scale-95 opacity-0",
       )}
     >
       {children}

@@ -593,7 +593,7 @@ function Reveal({
       style={{ transitionDelay: `${delay}ms` }}
       className={cn(
         "h-full transition-all duration-700 ease-[cubic-bezier(.2,.75,.25,1)] motion-reduce:transition-none",
-        shown ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
+        shown ? "scale-100 opacity-100" : "scale-95 opacity-0",
         className,
       )}
     >

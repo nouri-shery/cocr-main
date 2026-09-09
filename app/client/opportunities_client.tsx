@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Bookmark, BookmarkCheck, Search, MapPin, Wifi, Building2, Users2,
   ExternalLink, AlertTriangle, Clock, Share2, Check, ArrowUpDown,
+  Wallet, BadgeCheck, CalendarPlus,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,9 +13,13 @@ import { Input } from "@/components/ui/input";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { cn } from "@/lib/utils";
-import { getDeadlineInfo } from "../lib/opportunity-deadline";
+import { getDeadlineInfo, type DeadlineUrgency } from "../lib/opportunity-deadline";
+import { CATEGORY_LABELS } from "../lib/opportunity-categories";
 import type { OpportunityCategory, OpportunityFormat, OpportunityListing } from "../types/types";
 
 const ACCENT: Record<string, { bg: string; fg: string; dot: string }> = {
@@ -35,6 +40,43 @@ const FORMAT_ICON: Record<OpportunityFormat, React.ElementType> = {
   offline: Building2,
   hybrid: Users2,
 };
+
+const URGENCY_STYLE: Record<string, string> = {
+  urgent: "bg-destructive/10 text-destructive",
+  soon: "bg-gold-50 text-gold-600",
+  normal: "bg-blue-tint text-primary",
+  open: "bg-green-50 text-green",
+  closed: "bg-muted text-muted-foreground",
+};
+
+function formatAgeLabel(o: OpportunityListing) {
+  if (o.ageNote) return o.ageNote;
+  if (o.ageMin != null && o.ageMax != null) return `${o.ageMin}–${o.ageMax} سنة`;
+  return "حسب شروط الجهة";
+}
+
+function getDeadlineDisplay(o: OpportunityListing): { label: string; urgency: DeadlineUrgency } {
+  if (o.deadlineNote) return { label: o.deadlineNote, urgency: "normal" };
+  return getDeadlineInfo(o.deadline);
+}
+
+function isoDatePlusOneDay(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10).replace(/-/g, "");
+}
+
+function googleCalendarUrl(o: OpportunityListing) {
+  if (!o.deadline) return null;
+  const date = o.deadline.replace(/-/g, "");
+  const end = isoDatePlusOneDay(o.deadline);
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: `ديدلاين: ${o.title}`,
+    dates: `${date}/${end}`,
+    details: `تذكير من COCR — آخر موعد للتقديم على ${o.title}. رابط التقديم: ${o.officialLink}`,
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
 
 const SAVE_KEY = "cocr-saved-opportunities";
 
@@ -96,6 +138,7 @@ export function OpportunitiesExplorer({ initialOpportunities, categories }: Oppo
   const [savedOnly, setSavedOnly] = React.useState(false);
   const [sort, setSort] = React.useState<SortOption>("deadline-asc");
   const [sortOpen, setSortOpen] = React.useState(false);
+  const [activeId, setActiveId] = React.useState<string | null>(null);
   const { saved, toggle } = useSavedOpportunities();
 
   const filtered = React.useMemo(() => {
@@ -114,9 +157,11 @@ export function OpportunitiesExplorer({ initialOpportunities, categories }: Oppo
   }, [initialOpportunities, category, format, query, savedOnly, saved, sort]);
 
   const urgentCount = React.useMemo(
-    () => initialOpportunities.filter((o) => getDeadlineInfo(o.deadline).urgency === "urgent").length,
+    () => initialOpportunities.filter((o) => getDeadlineDisplay(o).urgency === "urgent").length,
     [initialOpportunities],
   );
+
+  const activeOpportunity = initialOpportunities.find((o) => o.id === activeId) ?? null;
 
   return (
     <div>
@@ -224,22 +269,27 @@ export function OpportunitiesExplorer({ initialOpportunities, categories }: Oppo
         </p>
       ) : (
         <div className="grid gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((o) => (
-            <OpportunityCard key={o.id} opportunity={o} saved={saved.includes(o.id)} onToggleSaved={() => toggle(o.id)} />
+          {filtered.map((o, i) => (
+            <Reveal key={o.id} delay={Math.min(i, 5) * 60}>
+              <OpportunityCard
+                opportunity={o}
+                saved={saved.includes(o.id)}
+                onToggleSaved={() => toggle(o.id)}
+                onExpand={() => setActiveId(o.id)}
+              />
+            </Reveal>
           ))}
         </div>
       )}
+
+      <OpportunityDialog
+        opportunity={activeOpportunity}
+        open={activeOpportunity !== null}
+        onOpenChange={(open) => { if (!open) setActiveId(null); }}
+      />
     </div>
   );
 }
-
-const URGENCY_STYLE: Record<string, string> = {
-  urgent: "bg-destructive text-white",
-  soon: "bg-gold-50 text-gold-600",
-  normal: "bg-blue-tint text-primary",
-  open: "bg-green-50 text-green",
-  closed: "bg-muted text-muted-foreground",
-};
 
 function orgInitials(name: string) {
   const words = name.split(/\s+/).filter(Boolean);
@@ -247,14 +297,20 @@ function orgInitials(name: string) {
 }
 
 function OpportunityCard({
-  opportunity, saved, onToggleSaved,
-}: { opportunity: OpportunityListing; saved: boolean; onToggleSaved: () => void }) {
+  opportunity, saved, onToggleSaved, onExpand,
+}: { opportunity: OpportunityListing; saved: boolean; onToggleSaved: () => void; onExpand: () => void }) {
   const a = ACCENT[opportunity.accent];
-  const deadlineInfo = getDeadlineInfo(opportunity.deadline);
+  const deadline = getDeadlineDisplay(opportunity);
   const FormatIcon = FORMAT_ICON[opportunity.format];
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1.5 hover:border-transparent hover:shadow-[0_26px_52px_-26px_rgba(22,24,31,.42)]">
+    <article
+      onClick={onExpand}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onExpand(); } }}
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1.5 hover:border-transparent hover:shadow-[0_26px_52px_-26px_rgba(22,24,31,.42)]"
+    >
       <div className="relative grid h-[112px] place-items-center overflow-hidden" style={{ background: a.bg }}>
         <span
           aria-hidden
@@ -272,7 +328,7 @@ function OpportunityCard({
           </Badge>
         )}
         <button
-          onClick={onToggleSaved}
+          onClick={(e) => { e.stopPropagation(); onToggleSaved(); }}
           aria-label={saved ? "إلغاء الحفظ" : "احفظ الفرصة"}
           aria-pressed={saved}
           className="absolute end-3.5 top-3.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-sm transition-colors hover:text-primary"
@@ -295,37 +351,42 @@ function OpportunityCard({
             <span className="text-[.76rem] font-bold text-slate-500">{opportunity.organization}</span>
           </span>
           <span
-            className={cn("flex items-center gap-1 rounded-full px-2.5 py-1 text-[.72rem] font-extrabold", URGENCY_STYLE[deadlineInfo.urgency])}
+            className={cn("flex items-center gap-1 rounded-full px-2.5 py-1 text-[.72rem] font-extrabold", URGENCY_STYLE[deadline.urgency])}
           >
             <Clock className="h-3 w-3" />
-            {deadlineInfo.label}
+            {deadline.label}
           </span>
         </div>
 
-        <h3 className="text-[1.05rem] font-extrabold leading-relaxed">
-          <Link href={`/opportunities/${opportunity.id}`} className="hover:text-primary">
-            {opportunity.title}
-          </Link>
+        <h3 className="text-[1.05rem] font-extrabold leading-relaxed group-hover:text-primary">
+          {opportunity.title}
         </h3>
         <p className="flex-1 text-[.86rem] leading-relaxed text-muted-foreground">{opportunity.description}</p>
 
         <div className="flex flex-wrap gap-1.5">
           {opportunity.free && <Badge variant="outline" className="border-green/30 text-green">مجاني</Badge>}
-          <Badge variant="outline" className="text-slate-500">{opportunity.ageMin}–{opportunity.ageMax} سنة</Badge>
+          {opportunity.financialAid && (
+            <Badge variant="outline" className="border-gold/40 text-gold-600">
+              <Wallet className="me-1 h-3 w-3" /> دعم مالي
+            </Badge>
+          )}
+          <Badge variant="outline" className="text-slate-500">{formatAgeLabel(opportunity)}</Badge>
         </div>
 
-        <Accordion type="single" collapsible>
-          <AccordionItem value="eligibility" className="border-t-0">
-            <AccordionTrigger className="py-1 text-[.82rem]">شروط الأهلية</AccordionTrigger>
-            <AccordionContent>
-              <ul className="list-inside list-disc space-y-1 text-[.82rem] text-muted-foreground">
-                {opportunity.eligibility.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+        <div onClick={(e) => e.stopPropagation()}>
+          <Accordion type="single" collapsible>
+            <AccordionItem value="eligibility" className="border-t-0">
+              <AccordionTrigger className="py-1 text-[.82rem]">شروط الأهلية</AccordionTrigger>
+              <AccordionContent>
+                <ul className="list-inside list-disc space-y-1 text-[.82rem] text-muted-foreground">
+                  {opportunity.eligibility.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
 
         <div className="flex items-center justify-between gap-2 border-t border-dashed border-border pt-3 text-[.78rem] font-semibold text-muted-foreground">
           <span className="flex items-center gap-1.5">
@@ -336,7 +397,7 @@ function OpportunityCard({
           </span>
         </div>
 
-        <div className="mt-1 flex items-center gap-2">
+        <div className="mt-1 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <Link
             href={opportunity.officialLink}
             target="_blank"
@@ -352,6 +413,103 @@ function OpportunityCard({
         </div>
       </div>
     </article>
+  );
+}
+
+function OpportunityDialog({
+  opportunity, open, onOpenChange,
+}: { opportunity: OpportunityListing | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+  if (!opportunity) return null;
+  const a = ACCENT[opportunity.accent];
+  const deadline = getDeadlineDisplay(opportunity);
+  const FormatIcon = FORMAT_ICON[opportunity.format];
+  const calendarUrl = googleCalendarUrl(opportunity);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[88vh] overflow-y-auto p-0 sm:max-w-lg">
+        <div className="relative grid h-[110px] place-items-center" style={{ background: a.bg }}>
+          <Icon3D name={opportunity.icon} className="h-16 w-16" />
+        </div>
+        <div className="flex flex-col gap-3 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 pe-8">
+            <Badge variant="outline" style={{ color: a.fg, borderColor: a.fg }}>
+              {CATEGORY_LABELS[opportunity.category]}
+            </Badge>
+            <span className={cn("flex items-center gap-1 rounded-full px-2.5 py-1 text-[.72rem] font-extrabold", URGENCY_STYLE[deadline.urgency])}>
+              <Clock className="h-3 w-3" /> {deadline.label}
+            </span>
+          </div>
+
+          <DialogHeader className="text-start">
+            <DialogTitle className="text-[1.15rem] font-extrabold leading-snug">{opportunity.title}</DialogTitle>
+            <DialogDescription className="font-bold text-slate-500">{opportunity.organization}</DialogDescription>
+          </DialogHeader>
+
+          <p className="text-[.92rem] leading-[1.8] text-muted-foreground">{opportunity.description}</p>
+
+          <div className="flex flex-wrap gap-1.5">
+            {opportunity.free && <Badge variant="outline" className="border-green/30 text-green">مجاني</Badge>}
+            {opportunity.financialAid && (
+              <Badge variant="outline" className="border-gold/40 text-gold-600">
+                <Wallet className="me-1 h-3 w-3" /> دعم مالي متاح
+              </Badge>
+            )}
+            <Badge variant="outline" className="text-slate-500">{formatAgeLabel(opportunity)}</Badge>
+            {opportunity.verified && (
+              <Badge variant="outline" className="border-primary/30 text-primary">
+                <BadgeCheck className="me-1 h-3 w-3" /> مصدر موثّق
+              </Badge>
+            )}
+          </div>
+
+          {opportunity.duration && (
+            <p className="text-[.86rem] font-semibold text-slate-500">المدة: {opportunity.duration}</p>
+          )}
+
+          <div>
+            <h4 className="mb-1.5 text-[.9rem] font-extrabold">شروط الأهلية</h4>
+            <ul className="list-inside list-disc space-y-1 text-[.86rem] text-muted-foreground">
+              {opportunity.eligibility.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-dashed border-border pt-3 text-[.82rem] font-semibold text-muted-foreground">
+            <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" style={{ color: a.fg }} /> {opportunity.location}</span>
+            <span className="flex items-center gap-1.5"><FormatIcon className="h-4 w-4" style={{ color: a.fg }} /> {FORMAT_LABEL[opportunity.format]}</span>
+          </div>
+
+          <p className="text-[.72rem] text-slate-400">
+            البيانات دي تجريبية للـ MVP — راجع تفاصيل الديدلاين والأهلية من الموقع الرسمي قبل التقديم.
+          </p>
+        </div>
+
+        <DialogFooter>
+          <ShareButton title={opportunity.title} url={`/opportunities/${opportunity.id}`} compact />
+          {calendarUrl && (
+            <Link
+              href={calendarUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex min-h-[46px] items-center justify-center gap-2 rounded-2xl border border-border px-4 text-[.88rem] font-bold text-slate-600 hover:border-slate-400"
+            >
+              <CalendarPlus className="h-4 w-4" /> فكّرني بالديدلاين
+            </Link>
+          )}
+          <Link
+            href={opportunity.officialLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-2xl text-[.92rem] font-extrabold text-white"
+            style={{ background: a.fg }}
+          >
+            قدّم دلوقتي <ExternalLink className="h-4 w-4" />
+          </Link>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -402,5 +560,44 @@ export function ShareButton({
       {copied ? <Check className="h-4 w-4 text-green" /> : <Share2 className="h-4 w-4" />}
       {copied ? "اتنسخ الرابط!" : "شارك"}
     </button>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Reveal — نفس أنيميشن الظهور مع السكرول المستخدم في باقي الموقع         */
+/* ------------------------------------------------------------------ */
+function Reveal({
+  children, className, delay = 0,
+}: { children: React.ReactNode; className?: string; delay?: number }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [shown, setShown] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setShown(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setShown(true); io.disconnect(); } },
+      { threshold: 0.15, rootMargin: "0px 0px -60px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      style={{ transitionDelay: `${delay}ms` }}
+      className={cn(
+        "h-full transition-all duration-700 ease-[cubic-bezier(.2,.75,.25,1)] motion-reduce:transition-none",
+        shown ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
+        className,
+      )}
+    >
+      {children}
+    </div>
   );
 }

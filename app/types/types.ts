@@ -95,7 +95,7 @@ export interface Faq {
 /*  صفحة المنح والفرص                                                    */
 /* ==================================================================== */
 export type OpportunityCategory =
-  | "all" | "competition" | "stem" | "writing" | "speaking" | "leadership";
+  | "all" | "competition" | "stem" | "writing" | "speaking" | "leadership" | "grant";
 
 export type OpportunityFormat = "online" | "offline" | "hybrid";
 
@@ -106,18 +106,24 @@ export interface OpportunityListing {
   category: Exclude<OpportunityCategory, "all">;
   icon: IconName;
   accent: Accent;
-  ageMin: number;
-  ageMax: number;
+  /** السن الرقمي — لو مش ثابت (زي شروط UWC اللي بتختلف حسب الدولة) استخدم ageNote بدالهم */
+  ageMin?: number;
+  ageMax?: number;
+  ageNote?: string;
   location: string;
   format: OpportunityFormat;
   free: boolean;
-  /** ISO date (YYYY-MM-DD)، أو null لو التقديم مفتوح بدون ديدلاين ثابت */
+  /** دعم مالي/منحة جزئية أو كاملة متاحة، غير مرتبط بـ free (البرنامج ممكن يكون مدفوع بس فيه تمويل) */
+  financialAid?: boolean;
+  duration?: string;
+  /** ISO date (YYYY-MM-DD)، أو null لو مفيش تاريخ ثابت (استخدم deadlineNote للتوضيح) */
   deadline: string | null;
+  deadlineNote?: string;
   description: string;
   eligibility: string[];
   tags: string[];
   officialLink: string;
   featured?: boolean;
-  /** بيانات تجريبية Seed لحد ما نتأكد منها فعليًا قبل الإطلاق */
+  /** true لو المصدر اتراجع فعليًا من الموقع الرسمي (زي UWC) — مش مجرد Seed */
   verified: boolean;
 }

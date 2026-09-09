@@ -1,6 +1,7 @@
 import { OpportunityCategory } from "../types/types";
 
 export const CATEGORY_LABELS: Record<Exclude<OpportunityCategory, "all">, string> = {
+  grant: "منح دراسية",
   competition: "مسابقات",
   stem: "STEM وبحث",
   writing: "كتابة",

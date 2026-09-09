@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, Clock, MapPin, Wifi, Building2, Users2, ExternalLink } from "lucide-react";
+import { ArrowRight, Clock, MapPin, Wifi, Building2, Users2, ExternalLink, Wallet, BadgeCheck, CalendarPlus } from "lucide-react";
 import { OpportunitiesExplorer, ShareButton } from "../client/opportunities_client";
 import { getOpportunities, getOpportunityCategories, getOpportunityById } from "../actions/opportunities_actions";
 import { getDeadlineInfo } from "../lib/opportunity-deadline";
 import { CATEGORY_LABELS } from "../lib/opportunity-categories";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { Badge } from "@/components/ui/badge";
-import type { OpportunityFormat } from "../types/types";
+import type { OpportunityFormat, OpportunityListing } from "../types/types";
 
 const ACCENT: Record<string, { bg: string; fg: string; dot: string }> = {
   blue: { bg: "#E9EEFC", fg: "#1E45C4", dot: "rgba(30,69,196,.2)" },
@@ -29,12 +29,36 @@ const FORMAT_ICON: Record<OpportunityFormat, React.ElementType> = {
 };
 
 const URGENCY_STYLE: Record<string, string> = {
-  urgent: "bg-destructive text-white",
+  urgent: "bg-destructive/10 text-destructive",
   soon: "bg-gold-50 text-gold-600",
   normal: "bg-blue-tint text-primary",
   open: "bg-green-50 text-green",
   closed: "bg-muted text-muted-foreground",
 };
+
+function formatAgeLabel(o: OpportunityListing) {
+  if (o.ageNote) return o.ageNote;
+  if (o.ageMin != null && o.ageMax != null) return `${o.ageMin}–${o.ageMax} سنة`;
+  return "حسب شروط الجهة";
+}
+
+function isoDatePlusOneDay(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10).replace(/-/g, "");
+}
+
+function googleCalendarUrl(o: OpportunityListing) {
+  if (!o.deadline) return null;
+  const date = o.deadline.replace(/-/g, "");
+  const end = isoDatePlusOneDay(o.deadline);
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: `ديدلاين: ${o.title}`,
+    dates: `${date}/${end}`,
+    details: `تذكير من COCR — آخر موعد للتقديم على ${o.title}. رابط التقديم: ${o.officialLink}`,
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
 
 export async function OpportunitiesPageContent() {
   const [opportunities, categories] = await Promise.all([
@@ -69,8 +93,11 @@ export async function OpportunityDetailContent({ id }: { id: string }) {
   if (!opportunity) notFound();
 
   const a = ACCENT[opportunity.accent];
-  const deadlineInfo = getDeadlineInfo(opportunity.deadline);
+  const deadlineInfo = opportunity.deadlineNote
+    ? { label: opportunity.deadlineNote, urgency: "normal" as const }
+    : getDeadlineInfo(opportunity.deadline);
   const FormatIcon = FORMAT_ICON[opportunity.format];
+  const calendarUrl = googleCalendarUrl(opportunity);
 
   return (
     <main className="relative overflow-hidden bg-cream pb-[100px] pt-[52px]">
@@ -109,11 +136,25 @@ export async function OpportunityDetailContent({ id }: { id: string }) {
 
             <div className="flex flex-wrap gap-2">
               {opportunity.free && <Badge variant="outline" className="border-green/30 text-green">مجاني</Badge>}
-              <Badge variant="outline" className="text-slate-500">{opportunity.ageMin}–{opportunity.ageMax} سنة</Badge>
+              {opportunity.financialAid && (
+                <Badge variant="outline" className="border-gold/40 text-gold-600">
+                  <Wallet className="me-1 h-3 w-3" /> دعم مالي متاح
+                </Badge>
+              )}
+              <Badge variant="outline" className="text-slate-500">{formatAgeLabel(opportunity)}</Badge>
+              {opportunity.verified && (
+                <Badge variant="outline" className="border-primary/30 text-primary">
+                  <BadgeCheck className="me-1 h-3 w-3" /> مصدر موثّق
+                </Badge>
+              )}
               {opportunity.tags.map((t) => (
                 <Badge key={t} variant="outline" className="text-slate-500">{t}</Badge>
               ))}
             </div>
+
+            {opportunity.duration && (
+              <p className="text-[.9rem] font-semibold text-slate-500">المدة: {opportunity.duration}</p>
+            )}
 
             <div className="grid gap-3 rounded-2xl border border-dashed border-border p-4 sm:grid-cols-2">
               <span className="flex items-center gap-2 text-[.9rem] font-semibold text-muted-foreground">
@@ -143,6 +184,16 @@ export async function OpportunityDetailContent({ id }: { id: string }) {
               >
                 قدّم دلوقتي على الموقع الرسمي <ExternalLink className="h-4 w-4" />
               </Link>
+              {calendarUrl && (
+                <Link
+                  href={calendarUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex min-h-[50px] items-center justify-center gap-2 rounded-2xl border border-border px-5 text-[.9rem] font-bold text-slate-600"
+                >
+                  <CalendarPlus className="h-4 w-4" /> فكّرني بالديدلاين
+                </Link>
+              )}
               <ShareButton title={opportunity.title} />
             </div>
 

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { getCourses } from "../actions/landing_page_actions";
-import { Course, CourseCategory, Faq } from "../types/types";
+import { Course, CourseCategory, Faq, GrowthRung } from "../types/types";
 import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -94,6 +94,7 @@ const NAV_LINKS = [
   { href: "#top", label: "الرئيسية" },
   { href: "/courses", label: "الكورسات" },
   { href: "/opportunities", label: "الفرص والمنح" },
+  { href: "/about", label: "قصتنا" },
 ];
 
 export function Navbar() {
@@ -315,6 +316,49 @@ export function JourneyEndVisual() {
       >
         نهاية الرحلة… وبداية رحلتك
       </span>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* GrowthLadder — تدرّج Student→Mentor بميداليات متكبّرة وترقيم وحركة       */
+/* مكوّن مشترك — بيتستخدم في أكتر من صفحة، بدل ما يتكرر شكله مختلف كل مرة */
+/* ------------------------------------------------------------------ */
+const RUNG_SIZE = ["h-14 w-14", "h-16 w-16", "h-[72px] w-[72px]", "h-20 w-20", "h-[92px] w-[92px]"];
+const RUNG_ICON_SIZE = ["h-6 w-6", "h-6 w-6", "h-7 w-7", "h-8 w-8", "h-10 w-10"];
+
+export function GrowthLadder({ rungs }: { rungs: GrowthRung[] }) {
+  return (
+    <div className="relative mx-auto max-w-[860px]">
+      <span
+        aria-hidden
+        className="absolute end-[8%] start-[8%] top-[30px] hidden sm:block sm:top-[34px] lg:top-[42px] [background:repeating-linear-gradient(to_right,#1E45C4_0_8px,transparent_8px_18px)] [height:2px]"
+      />
+      <div className="relative grid gap-8 sm:grid-cols-5">
+        {rungs.map((r, i) => (
+          <Reveal key={r.id} variant="pop" delay={i * 100} className="group flex flex-col items-center text-center">
+            <div className="relative mb-3.5">
+              <div className={cn(
+                "grid place-items-center rounded-full border-[3px] bg-white transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_14px_28px_-10px_rgba(30,69,196,.35)]",
+                RUNG_SIZE[i],
+                r.final
+                  ? "border-gold bg-gradient-to-br from-gold-50 to-[#F5E4C4] shadow-[0_0_0_6px_rgba(233,169,60,.18)]"
+                  : "border-primary/25",
+              )}>
+                <Icon3D name={r.icon} className={cn(RUNG_ICON_SIZE[i], "transition-transform duration-300 group-hover:scale-110")} />
+              </div>
+              <span className={cn(
+                "absolute -top-1.5 -end-1.5 grid h-6 w-6 place-items-center rounded-full text-[.7rem] font-extrabold text-white",
+                r.final ? "bg-gold-600" : "bg-primary",
+              )}>
+                {i + 1}
+              </span>
+            </div>
+            <b className="text-[.95rem] font-extrabold">{r.description}</b>
+            <span className="mt-0.5 text-[.72rem] font-semibold text-slate-400" dir="ltr">{r.label}</span>
+          </Reveal>
+        ))}
+      </div>
     </div>
   );
 }

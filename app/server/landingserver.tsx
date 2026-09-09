@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Check, X, Info } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { CourseGrid, FaqAccordion, PassportVisual, JourneyEndVisual, Reveal } from "../client/landing_client";
+import { CourseGrid, FaqAccordion, PassportVisual, JourneyEndVisual, GrowthLadder, Reveal } from "../client/landing_client";
 import { Accent } from "../types/types";
 import { getCourseCategories, getCourses, getFaqs, getGrowthLadder, getJourneyPhases, getMentors, getOpportunities, getPlatformSections, getProjects } from "../actions/landing_page_actions";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
@@ -480,7 +480,9 @@ const MENTOR_BG: Record<Accent, string> = {
 const MENTOR_CARD_OFFSET = ["", "sm:mt-8", "sm:mt-4"];
 
 export async function MentorsSection() {
-  const mentors = await getMentors();
+  const allMentors = await getMentors();
+  // بس اللي ليهم بورتريه مرسوم — مش عايزين كارت فاضي من غير كاركتر جنب اللي ليهم رسمة
+  const mentors = allMentors.filter((m) => MENTOR_ILLUSTRATIONS[m.id]);
   return (
     <Section id="mentors">
       <div className="grid gap-10 lg:grid-cols-[.9fr_1.1fr] lg:items-center lg:gap-16">
@@ -698,24 +700,7 @@ export async function GrowthSection() {
       <SectionHead center num="11" label="هتبقى مين" title="النهارده بتتعلم... بكرة أنت اللي بتعلّم"
         lead="ده مش شعار — ده إزاي المنصة بتشتغل. المينتور بتاعك كان طالب هنا." />
 
-      <div className="flex flex-col items-center justify-center gap-4 lg:flex-row lg:gap-1">
-        {rungs.map((r, i) => (
-          <Reveal key={r.id} delay={i * 110} variant="pop" className="flex flex-col items-center lg:flex-row">
-            <div className={cn(
-              "min-w-[148px] rounded-3xl border px-[22px] py-[18px] text-center shadow-sm transition-transform duration-300 hover:-translate-y-1",
-              r.final
-                ? "border-gold-600/30 bg-gradient-to-br from-gold-50 to-[#F5E4C4]"
-                : "border-border bg-white",
-            )}>
-              <b className="block font-display text-[1.05rem] font-bold" dir="ltr">{r.label}</b>
-              <span className="text-[.78rem] text-muted-foreground">{r.description}</span>
-            </div>
-            {i < rungs.length - 1 && (
-              <ArrowLeft className="my-2 h-7 w-7 -rotate-90 text-primary lg:my-0 lg:rotate-0" />
-            )}
-          </Reveal>
-        ))}
-      </div>
+      <GrowthLadder rungs={rungs} />
     </Section>
   );
 }

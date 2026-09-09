@@ -97,6 +97,7 @@ export interface GrowthRung {
   id: string;
   label: string;
   description: string;
+  icon: IconName;
   final?: boolean;
 }
 

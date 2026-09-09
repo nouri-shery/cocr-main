@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Check, ArrowLeft } from "lucide-react";
+import { Check } from "lucide-react";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { cn } from "@/lib/utils";
 import { Section, SectionHead, SiteFooter } from "./landingserver";
-import { Reveal, JourneyEndVisual } from "../client/landing_client";
+import { Reveal, JourneyEndVisual, GrowthLadder } from "../client/landing_client";
 import { getGrowthLadder } from "../actions/landing_page_actions";
 import type { IconName } from "../types/types";
 
@@ -198,24 +198,7 @@ async function StudentToMentorSection() {
       <SectionHead center label="من طالب لمينتور" title="تبدأ طالب... ترجع مينتور"
         lead="تبدأ كطالب في COCR، تتعلم وتجرب وتبني حاجات حقيقية. ومع الوقت، لما يكون عندك خبرة أو حاجة تقدر تقدّمها لغيرك، تقدر ترجع COCR كـMentor أو Contributor وتساعد طالب تاني." />
 
-      <div className="flex flex-col items-center justify-center gap-4 lg:flex-row lg:gap-1">
-        {rungs.map((r, i) => (
-          <Reveal key={r.id} delay={i * 110} variant="pop" className="flex flex-col items-center lg:flex-row">
-            <div className={cn(
-              "min-w-[148px] rounded-3xl border px-[22px] py-[18px] text-center shadow-sm transition-transform duration-300 hover:-translate-y-1",
-              r.final
-                ? "border-gold-600/30 bg-gradient-to-br from-gold-50 to-[#F5E4C4]"
-                : "border-border bg-white",
-            )}>
-              <b className="block font-display text-[1.05rem] font-bold" dir="ltr">{r.label}</b>
-              <span className="text-[.78rem] text-muted-foreground">{r.description}</span>
-            </div>
-            {i < rungs.length - 1 && (
-              <ArrowLeft className="my-2 h-7 w-7 -rotate-90 text-primary lg:my-0 lg:rotate-0" />
-            )}
-          </Reveal>
-        ))}
-      </div>
+      <GrowthLadder rungs={rungs} />
     </Section>
   );
 }

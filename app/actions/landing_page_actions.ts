@@ -168,11 +168,11 @@ export async function getOpportunities(): Promise<Opportunity[]> {
 
 export async function getGrowthLadder(): Promise<GrowthRung[]> {
   return [
-    { id: "student", label: "Student", description: "لسه بيبدأ" },
-    { id: "learner", label: "Learner", description: "ماشي في رحلة" },
-    { id: "builder", label: "Builder", description: "بيبني بإيده" },
-    { id: "contributor", label: "Contributor", description: "بيشارك ويساعد" },
-    { id: "mentor", label: "Mentor", description: "بقى بداية حد تاني", final: true },
+    { id: "student", label: "Student", description: "لسه بيبدأ", icon: "path" },
+    { id: "learner", label: "Learner", description: "ماشي في رحلة", icon: "compass" },
+    { id: "builder", label: "Builder", description: "بيبني بإيده", icon: "hammer" },
+    { id: "contributor", label: "Contributor", description: "بيشارك ويساعد", icon: "heart" },
+    { id: "mentor", label: "Mentor", description: "بقى بداية حد تاني", icon: "mentor", final: true },
   ];
 }
 

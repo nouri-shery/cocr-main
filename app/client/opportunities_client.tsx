@@ -20,6 +20,7 @@ import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { cn } from "@/lib/utils";
 import { getDeadlineInfo, type DeadlineUrgency } from "../lib/opportunity-deadline";
 import { CATEGORY_LABELS } from "../lib/opportunity-categories";
+import { getOnboarding, INTEREST_TO_OPPORTUNITY_CATEGORY, INTEREST_TAG_HINTS } from "../lib/onboarding";
 import type { OpportunityCategory, OpportunityFormat, OpportunityListing } from "../types/types";
 
 const ACCENT: Record<string, { bg: string; fg: string; dot: string }> = {
@@ -140,6 +141,23 @@ export function OpportunitiesExplorer({ initialOpportunities, categories }: Oppo
   const [sortOpen, setSortOpen] = React.useState(false);
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const { saved, toggle } = useSavedOpportunities();
+  const [interestMatch, setInterestMatch] = React.useState<{ categories: OpportunityCategory[]; tags: string[] } | null>(null);
+
+  React.useEffect(() => {
+    const onboarding = getOnboarding();
+    if (!onboarding || onboarding.interests.length === 0) return;
+    setInterestMatch({
+      categories: Array.from(new Set(onboarding.interests.flatMap((i) => INTEREST_TO_OPPORTUNITY_CATEGORY[i]))),
+      tags: Array.from(new Set(onboarding.interests.flatMap((i) => INTEREST_TAG_HINTS[i]))),
+    });
+  }, []);
+
+  const recommendedOpportunities = React.useMemo(() => {
+    if (!interestMatch) return [];
+    return initialOpportunities
+      .filter((o) => interestMatch.categories.includes(o.category) || o.tags.some((t) => interestMatch.tags.includes(t)))
+      .slice(0, 3);
+  }, [initialOpportunities, interestMatch]);
 
   const filtered = React.useMemo(() => {
     const matches = initialOpportunities.filter((o) => {
@@ -165,6 +183,20 @@ export function OpportunitiesExplorer({ initialOpportunities, categories }: Oppo
 
   return (
     <div>
+      {recommendedOpportunities.length > 0 && (
+        <section className="mb-8">
+          <div className="mb-4 flex items-center gap-2">
+            <h2 className="text-[1.15rem] font-extrabold">ترشيحات مخصصة ليك</h2>
+            <span className="rounded-full bg-blue-tint px-3 py-1 text-[.72rem] font-bold text-primary">بناءً على اهتماماتك</span>
+          </div>
+          <div className="grid gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
+            {recommendedOpportunities.map((o) => (
+              <OpportunityCard key={o.id} opportunity={o} saved={saved.includes(o.id)} onToggleSaved={() => toggle(o.id)} onExpand={() => setActiveId(o.id)} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {urgentCount > 0 && (
         <div className="mb-6 flex items-center gap-2.5 rounded-2xl border border-[#F0C4A6] bg-[#FBEEE4] px-4 py-3 text-[.88rem] font-semibold text-[#993C1D]">
           <AlertTriangle className="h-[18px] w-[18px] shrink-0" />

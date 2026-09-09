@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { cn } from "@/lib/utils";
+import { getOnboarding, INTEREST_TO_COURSE_CATEGORY } from "../lib/onboarding";
 import type { Course, CourseCategory, CourseFormat, Mentor } from "../types/types";
 
 const ACCENT: Record<string, { bg: string; fg: string; dot: string }> = {
@@ -71,11 +72,23 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
   const [query, setQuery] = React.useState("");
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [showSignupAlert, setShowSignupAlert] = React.useState(false);
+  const [interestCategories, setInterestCategories] = React.useState<CourseCategory[] | null>(null);
 
   React.useEffect(() => {
+    const onboarding = getOnboarding();
+    if (onboarding && onboarding.interests.length > 0) {
+      const cats = Array.from(new Set(onboarding.interests.flatMap((i) => INTEREST_TO_COURSE_CATEGORY[i])));
+      setInterestCategories(cats);
+      return; // متسجّل ومكمّل الأونبوردينج — مفيش لازمة نضايقه بتنبيه التسجيل
+    }
     const t = setTimeout(() => setShowSignupAlert(true), 900);
     return () => clearTimeout(t);
   }, []);
+
+  const recommendedCourses = React.useMemo(() => {
+    if (!interestCategories || interestCategories.length === 0) return [];
+    return allCourses.filter((c) => interestCategories.includes(c.category)).slice(0, 3);
+  }, [allCourses, interestCategories]);
 
   const mentorById = React.useMemo(
     () => Object.fromEntries(mentors.map((m) => [m.id, m])),
@@ -98,6 +111,22 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
 
   return (
     <div>
+      {recommendedCourses.length > 0 && (
+        <section className="mb-12">
+          <div className="mb-5 flex items-center gap-2">
+            <h2 className="text-[1.3rem] font-extrabold">ترشيحات مخصصة ليك</h2>
+            <span className="rounded-full bg-blue-tint px-3 py-1 text-[.72rem] font-bold text-primary">بناءً على اهتماماتك</span>
+          </div>
+          <div className="grid gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
+            {recommendedCourses.map((c, i) => (
+              <Reveal key={c.id} delay={i * 60}>
+                <CourseCard course={c} mentor={mentorById[c.mentorId]} onExpand={() => setActiveId(c.id)} />
+              </Reveal>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* أشهر الكورسات */}
       <section className="mb-12">
         <h2 className="mb-5 text-[1.3rem] font-extrabold">أشهر الكورسات</h2>

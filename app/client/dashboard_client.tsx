@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Star, Sprout, Lock } from "lucide-react";
+import { Star, Sprout, Lock, Users2 } from "lucide-react";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { GrowthLadder } from "./landing_client";
-import { getOnboarding, GOALS, INTEREST_TO_OPPORTUNITY_CATEGORY, type OnboardingData } from "../lib/onboarding";
-import type { OpportunityListing, GrowthRung } from "../types/types";
+import { getOnboarding, GOALS, INTEREST_TO_OPPORTUNITY_CATEGORY, INTEREST_TO_COURSE_CATEGORY, type OnboardingData } from "../lib/onboarding";
+import type { OpportunityListing, Course, Mentor, GrowthRung } from "../types/types";
 
 const ACCENT: Record<string, { bg: string }> = {
   blue: { bg: "#E9EEFC" },
@@ -23,22 +24,44 @@ const ACHIEVEMENT_SLOTS = [
   { label: "مساهمة", icon: "heart" as const },
 ];
 
+type Recommendation =
+  | { kind: "opportunity"; item: OpportunityListing }
+  | { kind: "course"; item: Course };
+
 export function DashboardClient({
-  rungs, opportunities,
-}: { rungs: GrowthRung[]; opportunities: OpportunityListing[] }) {
+  rungs, opportunities, courses, mentors,
+}: { rungs: GrowthRung[]; opportunities: OpportunityListing[]; courses: Course[]; mentors: Mentor[] }) {
   const [onboarding, setOnboarding] = React.useState<OnboardingData | null>(null);
+  const [mentorModalOpen, setMentorModalOpen] = React.useState(false);
 
   React.useEffect(() => {
     setOnboarding(getOnboarding());
   }, []);
 
-  const recommended = React.useMemo(() => {
-    if (!onboarding || onboarding.interests.length === 0) return opportunities.slice(0, 3);
-    const cats = Array.from(new Set(onboarding.interests.flatMap((i) => INTEREST_TO_OPPORTUNITY_CATEGORY[i])));
-    const matches = opportunities.filter((o) => cats.includes(o.category));
-    return (matches.length > 0 ? matches : opportunities).slice(0, 3);
-  }, [onboarding, opportunities]);
+  const recommendations = React.useMemo<Recommendation[]>(() => {
+    const interests = onboarding?.interests ?? [];
+    if (interests.length === 0) {
+      return [
+        ...opportunities.slice(0, 2).map((item): Recommendation => ({ kind: "opportunity", item })),
+        ...courses.slice(0, 2).map((item): Recommendation => ({ kind: "course", item })),
+      ];
+    }
+    const oppCats = Array.from(new Set(interests.flatMap((i) => INTEREST_TO_OPPORTUNITY_CATEGORY[i])));
+    const courseCats = Array.from(new Set(interests.flatMap((i) => INTEREST_TO_COURSE_CATEGORY[i])));
+    const matchedOpps = opportunities.filter((o) => oppCats.includes(o.category)).slice(0, 2);
+    const matchedCourses = courses.filter((c) => courseCats.includes(c.category)).slice(0, 2);
+    const fallback = [
+      ...opportunities.slice(0, 2).map((item): Recommendation => ({ kind: "opportunity", item })),
+      ...courses.slice(0, 2).map((item): Recommendation => ({ kind: "course", item })),
+    ];
+    const merged = [
+      ...matchedOpps.map((item): Recommendation => ({ kind: "opportunity", item })),
+      ...matchedCourses.map((item): Recommendation => ({ kind: "course", item })),
+    ];
+    return merged.length > 0 ? merged : fallback;
+  }, [onboarding, opportunities, courses]);
 
+  const mentorById = React.useMemo(() => Object.fromEntries(mentors.map((m) => [m.id, m])), [mentors]);
   const goalLabel = onboarding?.goal ? GOALS.find((g) => g.id === onboarding.goal)?.label : null;
 
   return (
@@ -63,30 +86,68 @@ export function DashboardClient({
         </div>
       </section>
 
-      {/* ترشيحات ليك */}
+      {/* ترشيحات مخصصة ليك */}
       <section className="mb-10">
         <div className="mb-4 flex items-center gap-2">
-          <h2 className="text-[1.2rem] font-extrabold">فرص ترشيحات ليك</h2>
+          <h2 className="text-[1.2rem] font-extrabold">ترشيحات مخصصة ليك 🎯</h2>
           <span className="rounded-full bg-blue-tint px-3 py-1 text-[.72rem] font-bold text-primary">بناءً على اهتماماتك</span>
         </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {recommended.map((o) => {
-            const a = ACCENT[o.accent];
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {recommendations.map((rec) => {
+            const a = ACCENT[rec.item.accent];
+            const isCourse = rec.kind === "course";
+            const href = isCourse ? (rec.item as Course).href : `/opportunities/${rec.item.id}`;
+            const subtitle = isCourse ? mentorById[(rec.item as Course).mentorId]?.name : (rec.item as OpportunityListing).organization;
             return (
               <Link
-                key={o.id}
-                href={`/opportunities/${o.id}`}
+                key={`${rec.kind}-${rec.item.id}`}
+                href={href}
                 className="rounded-2xl border border-border bg-white p-4 transition-all hover:-translate-y-1 hover:shadow-[0_18px_38px_-20px_rgba(22,24,31,.32)]"
               >
-                <span className="mb-3 grid h-10 w-10 place-items-center rounded-full" style={{ background: a.bg }}>
-                  <Icon3D name={o.icon} className="h-5 w-5" />
-                </span>
-                <p className="text-[.92rem] font-extrabold leading-snug">{o.title}</p>
-                <p className="mt-1 text-[.78rem] text-muted-foreground">{o.organization}</p>
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="grid h-10 w-10 place-items-center rounded-full" style={{ background: a.bg }}>
+                    <Icon3D name={rec.item.icon} className="h-5 w-5" />
+                  </span>
+                  <span className="rounded-full bg-sand px-2.5 py-1 text-[.68rem] font-bold text-slate-500">
+                    {isCourse ? "كورس" : "فرصة"}
+                  </span>
+                </div>
+                <p className="text-[.92rem] font-extrabold leading-snug">{rec.item.title}</p>
+                {subtitle && <p className="mt-1 text-[.78rem] text-muted-foreground">{subtitle}</p>}
               </Link>
             );
           })}
         </div>
+      </section>
+
+      {/* المفتكرة + التواصل مع مينتور */}
+      <section className="mb-10 grid gap-4 sm:grid-cols-2">
+        <Link
+          href="/saved"
+          className="flex items-center gap-4 rounded-2xl border border-border bg-white p-5 transition-all hover:-translate-y-1 hover:shadow-[0_18px_38px_-20px_rgba(22,24,31,.32)]"
+        >
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-blue-tint text-primary">
+            <Icon3D name="heart" className="h-6 w-6" />
+          </span>
+          <div>
+            <p className="font-extrabold">المفتكرة</p>
+            <p className="text-[.82rem] text-muted-foreground">الفرص اللي حفظتها عشان ترجع لها</p>
+          </div>
+        </Link>
+
+        <button
+          type="button"
+          onClick={() => setMentorModalOpen(true)}
+          className="flex items-center gap-4 rounded-2xl border border-primary/20 bg-blue-tint p-5 text-start transition-all hover:-translate-y-1 hover:shadow-[0_18px_38px_-20px_rgba(30,69,196,.25)]"
+        >
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-primary">
+            <Icon3D name="mentor" className="h-6 w-6" />
+          </span>
+          <div>
+            <p className="font-extrabold text-primary">تواصل مع مينتور 🤝</p>
+            <p className="text-[.82rem] text-primary/70">اتعرف على المينتورز اللي ممكن يساعدوك</p>
+          </div>
+        </button>
       </section>
 
       {/* استمر في التعلم — Empty state صريح، من غير تقدّم مُلفَّق */}
@@ -129,6 +190,63 @@ export function DashboardClient({
           الإنجازات دي هتشتغل بمجرد ما يبقى فيه تتبّع حقيقي لتقدّمك — مش أرقام مُلفَّقة.
         </p>
       </section>
+
+      <MentorCtaDialog open={mentorModalOpen} onOpenChange={setMentorModalOpen} mentors={mentors} />
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* MentorCtaDialog — معلومات بس، مفيش نظام حجز/طلب حقيقي لسه          */
+/* ------------------------------------------------------------------ */
+function MentorCtaDialog({
+  open, onOpenChange, mentors,
+}: { open: boolean; onOpenChange: (open: boolean) => void; mentors: Mentor[] }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader className="text-start">
+          <DialogTitle className="flex items-center gap-2 text-[1.1rem] font-extrabold">
+            تواصل مع مينتور 🤝
+          </DialogTitle>
+          <DialogDescription className="text-[.9rem] leading-relaxed">
+            المينتورز في COCR ناس سبقوك بسنة أو اتنين في نفس المسار، وبيراجعوا تسليمات الكورسات.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-2.5">
+          {mentors.map((m) => {
+            const a = ACCENT[m.accent];
+            return (
+              <div key={m.id} className="flex items-center gap-3 rounded-xl border border-border p-3">
+                <span
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[.75rem] font-extrabold"
+                  style={{ background: a.bg }}
+                  aria-hidden
+                >
+                  {m.initial}
+                </span>
+                <div>
+                  <p className="text-[.88rem] font-extrabold">{m.name}</p>
+                  <p className="text-[.76rem] text-muted-foreground">{m.track} · {m.gapLabel}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="rounded-xl bg-sand p-3.5 text-[.82rem] leading-relaxed text-muted-foreground">
+          دلوقتي في مرحلة الـ Beta مفيش نظام حجز مباشر مع مينتور لسه — بس تقدر تتعرف عليهم أكتر من صفحة كل كورس، وهما اللي بيراجعوا تسليماتك فيه.
+        </div>
+
+        <Link
+          href="/courses"
+          onClick={() => onOpenChange(false)}
+          className="flex min-h-[46px] items-center justify-center gap-2 rounded-xl bg-primary text-[.9rem] font-extrabold text-white"
+        >
+          <Users2 className="h-4 w-4" /> شوف المينتورز في الكورسات
+        </Link>
+      </DialogContent>
+    </Dialog>
   );
 }

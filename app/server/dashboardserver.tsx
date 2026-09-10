@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { DashboardClient } from "../client/dashboard_client";
-import { getGrowthLadder } from "../actions/landing_page_actions";
+import { getGrowthLadder, getCourses, getMentors } from "../actions/landing_page_actions";
 import { getOpportunities } from "../actions/opportunities_actions";
 import { SiteFooter } from "./landingserver";
 import { getCurrentUser } from "@/lib/supabase/get-user";
@@ -9,9 +9,11 @@ export async function DashboardPageContent() {
   const user = await getCurrentUser().catch(() => null);
   if (!user) redirect("/login?next=/dashboard");
 
-  const [rungs, opportunities] = await Promise.all([
+  const [rungs, opportunities, courses, mentors] = await Promise.all([
     getGrowthLadder(),
     getOpportunities(),
+    getCourses(),
+    getMentors(),
   ]);
 
   const displayName = (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "";
@@ -34,7 +36,7 @@ export async function DashboardPageContent() {
           </p>
         </div>
 
-        <DashboardClient rungs={rungs} opportunities={opportunities} />
+        <DashboardClient rungs={rungs} opportunities={opportunities} courses={courses} mentors={mentors} />
       </div>
     </main>
     <SiteFooter />

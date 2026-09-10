@@ -531,8 +531,8 @@ export function CourseGrid({
 /* ------------------------------------------------------------------ */
 export function FaqAccordion({ faqs }: { faqs: Faq[] }) {
   return (
-    <Accordion 
-      {...({ type: "single", collapsible: true, defaultValue: faqs[0]?.id ?? "" } as any)}
+    <Accordion
+      defaultValue={faqs[0] ? [faqs[0].id] : []}
       className="mx-auto max-w-[44em]"
     >
       {faqs.map((f) => (

@@ -421,7 +421,7 @@ export function OpportunityCard({
         </div>
 
         <div onClick={(e) => e.stopPropagation()}>
-          <Accordion type="single" collapsible>
+          <Accordion>
             <AccordionItem value="eligibility" className="border-t-0">
               <AccordionTrigger className="py-1 text-[.82rem]">شروط الأهلية</AccordionTrigger>
               <AccordionContent>

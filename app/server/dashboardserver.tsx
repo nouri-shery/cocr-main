@@ -18,6 +18,10 @@ export async function DashboardPageContent() {
 
   const displayName = (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "";
   const firstName = displayName.split(" ")[0] || "بطل";
+  const startedCourses: { id: string; startedAt: string }[] = user.user_metadata?.startedCourses ?? [];
+  const startedCourseItems = startedCourses
+    .map((sc) => courses.find((c) => c.id === sc.id))
+    .filter((c): c is NonNullable<typeof c> => !!c);
 
   return (
     <>
@@ -36,7 +40,13 @@ export async function DashboardPageContent() {
           </p>
         </div>
 
-        <DashboardClient rungs={rungs} opportunities={opportunities} courses={courses} mentors={mentors} />
+        <DashboardClient
+          rungs={rungs}
+          opportunities={opportunities}
+          courses={courses}
+          mentors={mentors}
+          startedCourses={startedCourseItems}
+        />
       </div>
     </main>
     <SiteFooter />

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Star, Sprout, Lock, Users2 } from "lucide-react";
+import { Star, Sprout, Lock, Users2, UserCircle } from "lucide-react";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { GrowthLadder } from "./landing_client";
@@ -29,8 +29,11 @@ type Recommendation =
   | { kind: "course"; item: Course };
 
 export function DashboardClient({
-  rungs, opportunities, courses, mentors,
-}: { rungs: GrowthRung[]; opportunities: OpportunityListing[]; courses: Course[]; mentors: Mentor[] }) {
+  rungs, opportunities, courses, mentors, startedCourses,
+}: {
+  rungs: GrowthRung[]; opportunities: OpportunityListing[]; courses: Course[]; mentors: Mentor[];
+  startedCourses: Course[];
+}) {
   const [onboarding, setOnboarding] = React.useState<OnboardingData | null>(null);
   const [mentorModalOpen, setMentorModalOpen] = React.useState(false);
 
@@ -120,8 +123,8 @@ export function DashboardClient({
         </div>
       </section>
 
-      {/* المفتكرة + التواصل مع مينتور */}
-      <section className="mb-10 grid gap-4 sm:grid-cols-2">
+      {/* المفتكرة + الملف الشخصي + التواصل مع مينتور */}
+      <section className="mb-10 grid gap-4 sm:grid-cols-3">
         <Link
           href="/saved"
           className="flex items-center gap-4 rounded-2xl border border-border bg-white p-5 transition-all hover:-translate-y-1 hover:shadow-[0_18px_38px_-20px_rgba(22,24,31,.32)]"
@@ -132,6 +135,19 @@ export function DashboardClient({
           <div>
             <p className="font-extrabold">المفتكرة</p>
             <p className="text-[.82rem] text-muted-foreground">الفرص اللي حفظتها عشان ترجع لها</p>
+          </div>
+        </Link>
+
+        <Link
+          href="/profile"
+          className="flex items-center gap-4 rounded-2xl border border-border bg-white p-5 transition-all hover:-translate-y-1 hover:shadow-[0_18px_38px_-20px_rgba(22,24,31,.32)]"
+        >
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-blue-tint text-primary">
+            <UserCircle className="h-6 w-6" />
+          </span>
+          <div>
+            <p className="font-extrabold">ملفك الشخصي</p>
+            <p className="text-[.82rem] text-muted-foreground">بياناتك، مهاراتك، وكورساتك</p>
           </div>
         </Link>
 
@@ -150,17 +166,38 @@ export function DashboardClient({
         </button>
       </section>
 
-      {/* استمر في التعلم — Empty state صريح، من غير تقدّم مُلفَّق */}
+      {/* استمر في التعلم — بيانات حقيقية من الكورسات اللي بدأتها فعلاً */}
       <section className="mb-10">
         <h2 className="mb-4 text-[1.2rem] font-extrabold">استمر في التعلم</h2>
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-sand px-6 py-10 text-center">
-          <Icon3D name="build" className="h-12 w-12 opacity-70" />
-          <p className="font-bold">لسه مبدأتش كورس</p>
-          <p className="max-w-[26em] text-[.86rem] text-muted-foreground">لما تبدأ كورس، هيظهر هنا وتقدر تكمّل منه في أي وقت.</p>
-          <Link href="/courses" className="mt-1 rounded-xl bg-primary px-5 py-2 text-[.86rem] font-extrabold text-white">
-            استكشف الكورسات
-          </Link>
-        </div>
+        {startedCourses.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-sand px-6 py-10 text-center">
+            <Icon3D name="build" className="h-12 w-12 opacity-70" />
+            <p className="font-bold">لسه مبدأتش كورس</p>
+            <p className="max-w-[26em] text-[.86rem] text-muted-foreground">لما تبدأ كورس، هيظهر هنا وتقدر تكمّل منه في أي وقت.</p>
+            <Link href="/courses" className="mt-1 rounded-xl bg-primary px-5 py-2 text-[.86rem] font-extrabold text-white">
+              استكشف الكورسات
+            </Link>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {startedCourses.map((c) => {
+              const a = ACCENT[c.accent];
+              return (
+                <Link
+                  key={c.id}
+                  href={c.href}
+                  className="rounded-2xl border border-border bg-white p-4 transition-all hover:-translate-y-1 hover:shadow-[0_18px_38px_-20px_rgba(22,24,31,.32)]"
+                >
+                  <span className="mb-3 grid h-10 w-10 place-items-center rounded-full" style={{ background: a.bg }}>
+                    <Icon3D name={c.icon} className="h-5 w-5" />
+                  </span>
+                  <p className="text-[.92rem] font-extrabold leading-snug">{c.title}</p>
+                  <p className="mt-1 text-[.78rem] text-muted-foreground">{mentorById[c.mentorId]?.name}</p>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* رحلتك */}

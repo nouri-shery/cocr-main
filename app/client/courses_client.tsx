@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Search, Clock, Radio, PlayCircle, Layers, Star, StarHalf, Users, UserPlus, X,
 } from "lucide-react";
@@ -15,6 +16,8 @@ import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { cn } from "@/lib/utils";
 import { getOnboarding, INTEREST_TO_COURSE_CATEGORY } from "../lib/onboarding";
 import { AuthPrompt } from "./auth-prompt";
+import { Reveal } from "./landing_client";
+import { startCourse } from "../actions/profile_actions";
 import type { Course, CourseCategory, CourseFormat, Mentor } from "../types/types";
 
 const ACCENT: Record<string, { bg: string; fg: string; dot: string }> = {
@@ -69,6 +72,7 @@ interface CoursesExplorerProps {
 }
 
 export function CoursesExplorer({ popularCourses, allCourses, categories, mentors, isAuthenticated }: CoursesExplorerProps) {
+  const router = useRouter();
   const [category, setCategory] = React.useState<CourseCategory>("all");
   const [format, setFormat] = React.useState<CourseFormat | "all">("all");
   const [query, setQuery] = React.useState("");
@@ -131,7 +135,7 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
           </div>
           <div className="grid gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
             {recommendedCourses.map((c, i) => (
-              <Reveal key={c.id} delay={i * 60}>
+              <Reveal key={c.id} delay={i * 60} variant="pop" className="h-full">
                 <CourseCard course={c} mentor={mentorById[c.mentorId]} onExpand={() => setActiveId(c.id)} />
               </Reveal>
             ))}
@@ -144,7 +148,7 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
         <h2 className="mb-5 text-[1.3rem] font-extrabold">أشهر الكورسات</h2>
         <div className="grid gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
           {popularCourses.map((c, i) => (
-            <Reveal key={c.id} delay={Math.min(i, 5) * 60}>
+            <Reveal key={c.id} delay={Math.min(i, 5) * 60} variant="pop" className="h-full">
               <CourseCard course={c} mentor={mentorById[c.mentorId]} onExpand={() => setActiveId(c.id)} />
             </Reveal>
           ))}
@@ -209,7 +213,7 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
       ) : (
         <div className="grid gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((c, i) => (
-            <Reveal key={c.id} delay={Math.min(i, 5) * 60}>
+            <Reveal key={c.id} delay={Math.min(i, 5) * 60} variant="pop" className="h-full">
               <CourseCard course={c} mentor={mentorById[c.mentorId]} onExpand={() => setActiveId(c.id)} />
             </Reveal>
           ))}
@@ -225,7 +229,10 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
         mentor={activeCourse ? mentorById[activeCourse.mentorId] : undefined}
         open={activeCourse !== null}
         onOpenChange={(open) => { if (!open) setActiveId(null); }}
-        onStart={() => { if (!isAuthenticated) setAuthPromptOpen(true); }}
+        onStart={() => {
+          if (!isAuthenticated) { setAuthPromptOpen(true); return; }
+          if (activeCourse) router.push(activeCourse.href);
+        }}
       />
 
       <AuthPrompt
@@ -385,6 +392,47 @@ function CourseDialog({
 }
 
 /**
+ * زرار "ابدأ الكورس" في صفحة تفاصيل الكورس — بيسجّل بداية حقيقية على حساب
+ * المستخدم (مش فيك داتا)، بس من غير أي ادّعاء بتقدّم أو دروس فعلية لسه.
+ */
+export function StartCourseButton({
+  courseId, isAuthenticated, alreadyStarted, accentFg,
+}: { courseId: string; isAuthenticated: boolean; alreadyStarted: boolean; accentFg: string }) {
+  const [authPromptOpen, setAuthPromptOpen] = React.useState(false);
+  const [started, setStarted] = React.useState(alreadyStarted);
+  const [pending, startTransition] = React.useTransition();
+
+  const handleClick = () => {
+    if (!isAuthenticated) { setAuthPromptOpen(true); return; }
+    if (started || pending) return;
+    startTransition(async () => {
+      await startCourse(courseId);
+      setStarted(true);
+    });
+  };
+
+  return (
+    <>
+      <button
+        onClick={handleClick}
+        disabled={pending || started}
+        className="flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl text-[.95rem] font-extrabold text-white disabled:cursor-default"
+        style={{ background: started ? "#1E7A4E" : accentFg, opacity: pending ? 0.7 : 1 }}
+      >
+        {started ? "بدأت الكورس ✅" : pending ? "لحظة..." : "ابدأ الكورس"}
+      </button>
+
+      <AuthPrompt
+        open={authPromptOpen}
+        onOpenChange={setAuthPromptOpen}
+        title="عايز تبدأ الكورس ده؟"
+        description="اعمل حساب مجاني في COCR عشان تقدر تبدأ الكورس، وتتابع تقدّمك فيه."
+      />
+    </>
+  );
+}
+
+/**
  * تنبيه دخول قابل للتجاهل — بيظهر لما تدخل الصفحة، مش هيجبر الزائر على حاجة.
  * الفيتشر نفسه (اختبار + ترشيح كورسات) لسه "قريبًا" لحد ما يبقى فيه حساب حقيقي.
  */
@@ -420,37 +468,3 @@ function SignupPrompt({ show, onDismiss }: { show: boolean; onDismiss: () => voi
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Reveal — نفس أنيميشن الظهور مع السكرول المستخدم في باقي الموقع         */
-/* ------------------------------------------------------------------ */
-function Reveal({ children }: { children: React.ReactNode }) {
-  const ref = React.useRef<HTMLDivElement>(null);
-  const [shown, setShown] = React.useState(false);
-
-  React.useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setShown(true);
-      return;
-    }
-    const io = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setShown(true); io.disconnect(); } },
-      { threshold: 0.15, rootMargin: "0px 0px -60px 0px" },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  return (
-    <div
-      ref={ref}
-      className={cn(
-        "h-full transition-all duration-700 ease-[cubic-bezier(.2,.75,.25,1)] motion-reduce:transition-none",
-        shown ? "scale-100 opacity-100" : "scale-95 opacity-0",
-      )}
-    >
-      {children}
-    </div>
-  );
-}

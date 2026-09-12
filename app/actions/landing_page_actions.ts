@@ -76,6 +76,11 @@ export async function getPopularCourses(): Promise<Course[]> {
     .slice(0, 6);
 }
 
+export async function getCourseById(id: string): Promise<Course | null> {
+  await delay(80);
+  return COURSES.find((c) => c.id === id) ?? null;
+}
+
 export async function getCourseCategories(): Promise<{ id: CourseCategory; label: string }[]> {
   return [
     { id: "all", label: "الكل" },

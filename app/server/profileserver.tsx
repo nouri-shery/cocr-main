@@ -2,12 +2,27 @@ import { redirect } from "next/navigation";
 import { ProfileClient } from "../client/profile_client";
 import { SiteFooter } from "./landingserver";
 import { getCurrentUser } from "@/lib/supabase/get-user";
+import { getCourses, getMentors } from "../actions/landing_page_actions";
+import { getOpportunities } from "../actions/opportunities_actions";
 
 export async function ProfilePageContent() {
   const user = await getCurrentUser().catch(() => null);
   if (!user) redirect("/login?next=/profile");
 
+  const [courses, mentors, opportunities] = await Promise.all([
+    getCourses(),
+    getMentors(),
+    getOpportunities(),
+  ]);
+
   const name = (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "طالب COCR";
+  const bio = (user.user_metadata?.bio as string | undefined) ?? "";
+  const skills = (user.user_metadata?.skills as string[] | undefined) ?? [];
+  const startedCourseIds: { id: string; startedAt: string }[] = user.user_metadata?.startedCourses ?? [];
+  const startedCourses = startedCourseIds
+    .map((sc) => courses.find((c) => c.id === sc.id))
+    .filter((c): c is NonNullable<typeof c> => !!c);
+  const mentorById = Object.fromEntries(mentors.map((m) => [m.id, m]));
 
   return (
     <>
@@ -23,7 +38,15 @@ export async function ProfilePageContent() {
           </h1>
         </div>
 
-        <ProfileClient name={name} email={user.email ?? ""} />
+        <ProfileClient
+          name={name}
+          email={user.email ?? ""}
+          bio={bio}
+          skills={skills}
+          startedCourses={startedCourses}
+          mentorById={mentorById}
+          opportunities={opportunities}
+        />
       </div>
     </main>
     <SiteFooter />

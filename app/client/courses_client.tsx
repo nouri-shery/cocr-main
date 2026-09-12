@@ -400,14 +400,21 @@ export function StartCourseButton({
 }: { courseId: string; isAuthenticated: boolean; alreadyStarted: boolean; accentFg: string }) {
   const [authPromptOpen, setAuthPromptOpen] = React.useState(false);
   const [started, setStarted] = React.useState(alreadyStarted);
+  const [failed, setFailed] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
 
   const handleClick = () => {
     if (!isAuthenticated) { setAuthPromptOpen(true); return; }
     if (started || pending) return;
+    setFailed(false);
     startTransition(async () => {
-      await startCourse(courseId);
-      setStarted(true);
+      try {
+        const result = await startCourse(courseId);
+        if (result.ok) setStarted(true);
+        else setFailed(true);
+      } catch {
+        setFailed(true);
+      }
     });
   };
 
@@ -421,6 +428,9 @@ export function StartCourseButton({
       >
         {started ? "بدأت الكورس ✅" : pending ? "لحظة..." : "ابدأ الكورس"}
       </button>
+      {failed && (
+        <p className="mt-2 text-[.82rem] font-semibold text-destructive">حصل خطأ، جرّب تاني بعد شوية.</p>
+      )}
 
       <AuthPrompt
         open={authPromptOpen}

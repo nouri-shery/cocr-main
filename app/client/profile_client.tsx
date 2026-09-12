@@ -29,9 +29,11 @@ export function ProfileClient({
     setOnboarding(getOnboarding());
   }, []);
 
+  const wasPending = React.useRef(false);
   React.useEffect(() => {
-    if (!pending && !state.error && editing) setEditing(false);
-  }, [pending, state.error, editing]);
+    if (wasPending.current && !pending && !state.error) setEditing(false);
+    wasPending.current = pending;
+  }, [pending, state.error]);
 
   const savedOpportunities = React.useMemo(
     () => opportunities.filter((o) => saved.includes(o.id)),

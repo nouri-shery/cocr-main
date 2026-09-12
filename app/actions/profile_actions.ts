@@ -22,7 +22,12 @@ export async function updateProfile(
 
   const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
-  const { error } = await supabase.auth.updateUser({ data: { bio, skills } });
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "لازم تسجّل دخولك الأول." };
+
+  const { error } = await supabase.auth.updateUser({
+    data: { ...user.user_metadata, bio, skills },
+  });
 
   if (error) return { error: "حصل خطأ، جرّب تاني بعد شوية." };
   revalidatePath("/profile");
@@ -30,19 +35,21 @@ export async function updateProfile(
 }
 
 /** بيسجّل إن الطالب بدأ الكورس ده — على حساب المستخدم الحقيقي، مش localStorage */
-export async function startCourse(courseId: string): Promise<void> {
+export async function startCourse(courseId: string): Promise<{ ok: boolean }> {
   const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+  if (!user) return { ok: false };
 
   const existing: StartedCourse[] = user.user_metadata?.startedCourses ?? [];
-  if (existing.some((c) => c.id === courseId)) return;
+  if (existing.some((c) => c.id === courseId)) return { ok: true };
 
   const next: StartedCourse[] = [...existing, { id: courseId, startedAt: new Date().toISOString() }];
-  await supabase.auth.updateUser({ data: { startedCourses: next } });
+  const { error } = await supabase.auth.updateUser({ data: { ...user.user_metadata, startedCourses: next } });
+  if (error) return { ok: false };
 
   revalidatePath("/dashboard");
   revalidatePath("/profile");
   revalidatePath(`/courses/${courseId}`);
+  return { ok: true };
 }

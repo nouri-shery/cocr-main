@@ -43,6 +43,8 @@ create extension if not exists pgcrypto;
 alter table public.profiles add column if not exists bio text;
 alter table public.profiles add column if not exists skills text[] not null default '{}';
 
+alter table public.profiles enable row level security;
+
 drop policy if exists "profiles_select_all" on public.profiles;
 create policy "profiles_select_all"
   on public.profiles for select
@@ -55,7 +57,16 @@ create policy "profiles_update_own"
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
-grant select on public.profiles to anon, authenticated;
+-- تصحيح أمان عاجل: التشغيلة الناجحة اللي فاتت منحت anon (أي حد على
+-- الإنترنت من غير تسجيل دخول) SELECT على الجدول كله — يعني interests/goal/
+-- country/governorate/account_status لأي طالب (تحت 18 سنة) كانت مقروءة من
+-- غير أي مصادقة. اتأكدنا من الاختراق ده فعليًا (curl بالـ anon key لوحده
+-- رجّع بيانات حقيقية). الإصلاح: نلغي المنحة الواسعة ونديله بس id+display_name
+-- (المطلوبين لعرض اسم صاحب مشروع منشور للزوار) — أي حاجة تانية محتاجة تسجيل
+-- دخول فعلي.
+revoke select on public.profiles from anon;
+grant select (id, display_name) on public.profiles to anon;
+grant select on public.profiles to authenticated;
 grant update (bio, skills, updated_at) on public.profiles to authenticated;
 
 -- إصلاح الأسماء الفاضية اللي سببها الـ bug في signUpWithEmail (بس للصفوف

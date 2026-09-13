@@ -20,7 +20,7 @@ export async function ProfilePageContent() {
     getMyProjects(),
   ]);
 
-  const name = profile?.full_name ?? (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "طالب COCR";
+  const name = profile?.display_name || (user.user_metadata?.full_name as string | undefined) || user.email || "طالب COCR";
   const bio = profile?.bio ?? "";
   const skills = profile?.skills ?? [];
   const startedCourses = enrollments

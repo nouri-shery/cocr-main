@@ -16,51 +16,37 @@
 -- - projects + project_feedback: نظام مشاريع حقيقي بسيط، بدون mentor system
 --   مخترع — أي مستخدم مسجّل يقدر يسيب feedback على مشروع منشور مش بتاعه.
 
--- الملف ده اتشغّل قبل كده وفشل عند الـ backfill (سطر profiles القديم) لأن
--- public.profiles كانت موجودة بالفعل في المشروع قبل الـ migration ده (Supabase
--- بيعمل الجدول ده تلقائي في مشاريع كتير)، وكانت شكلها مختلف — من غير عمود
--- full_name. الـ SQL Editor بيشغّل كل حاجة كـ transaction واحدة، فالفشل ده
--- رجّع كل حاجة قبله في نفس التشغيلة (RLS/policies/trigger) — يعني التشغيلة
--- الأولى معملتش حاجة خالص، وإعادة تشغيل النسخة المصححة دي من الأول آمنة تمامًا.
+-- تصحيح مهم (بعد فحص الـ schema الحقيقي فعليًا مع المستخدم): public.profiles
+-- مش جدول بسيط اتعمل بالصدفة — هي جزء حقيقي ومقصود من COCR، ببنية أوسع بكتير
+-- (display_name, account_status pending_approval, interests, goal,
+-- grade_or_education_stage, language...) وليها trigger حقيقي شغّال بالفعل
+-- (handle_new_user) بيعمل كمان insert في profile_sensitive (تاريخ ميلاد/بيانات
+-- ولي أمر) وguardian_approvals (لو فيه طلب دور Mentor/Teacher). الملف ده
+-- **ميلمسش الـ trigger أو الجدول ده خالص** — بس بيضيف الأعمدة الجديدة اللي
+-- Milestone 2 محتاجاها (bio, skills) واللي مش موجودة في النظام الأصلي.
 --
--- الإصلاح: بدل ما نفترض شكل الجدول، بنضيف بس الأعمدة الناقصة (ALTER TABLE ADD
--- COLUMN IF NOT EXISTS) — كده الملف بيشتغل صح سواء الجدول جديد أو كان موجود
--- بشكل مختلف قبل كده، من غير ما نحتاج نعرف شكله بالظبط. شيلنا الـ CHECK
--- constraint على طول bio من الداتابيز (كان بيحتاج منطق أعقد لو العمود موجود
--- من قبل) والاعتماد بقى على التحقق الموجود أصلًا في التطبيق نفسه
--- (app/actions/profile_actions.ts بيعمل .slice(0, 300) قبل الحفظ).
+-- اكتشفنا كمان إن signUpWithEmail (components/homecomponent/auth/actions.ts)
+-- كان بيحط الاسم في مفتاح user_metadata.full_name، لكن الـ trigger الحقيقي
+-- بيقرا من مفتاح مختلف (display_name) — يعني كل حساب اتسجّل من خلال التطبيق
+-- ده لحد دلوقتي أصلاً عنده profiles.display_name فاضي (''). ده اتصلح في نفس
+-- الوقت في signUpWithEmail، وهنا بنعمل UPDATE واحد آمن ومحدود (بس للصفوف اللي
+-- display_name فيها فاضي فعلاً) عشان نرجّع الاسم الصحيح من user_metadata
+-- للحسابات اللي اتأثرت بالمشكلة دي قبل الإصلاح.
 
 begin;
 
 create extension if not exists pgcrypto;
 
 -- ============================================================
--- profiles
+-- profiles — إضافات بس، من غير أي لمس للجدول أو الـ trigger الأصلي
 -- ============================================================
--- الحد الأدنى لو الجدول مش موجود خالص على مشروع جديد
-create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade
-);
-
--- تضيف الأعمدة الناقصة بس — من غير أي افتراض عن شكل الجدول القديم
-alter table public.profiles add column if not exists full_name text;
 alter table public.profiles add column if not exists bio text;
 alter table public.profiles add column if not exists skills text[] not null default '{}';
-alter table public.profiles add column if not exists created_at timestamptz not null default now();
-alter table public.profiles add column if not exists updated_at timestamptz not null default now();
-
-alter table public.profiles enable row level security;
 
 drop policy if exists "profiles_select_all" on public.profiles;
 create policy "profiles_select_all"
   on public.profiles for select
   using (true);
-
-drop policy if exists "profiles_insert_own" on public.profiles;
-create policy "profiles_insert_own"
-  on public.profiles for insert
-  to authenticated
-  with check (auth.uid() = id);
 
 drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own"
@@ -70,40 +56,16 @@ create policy "profiles_update_own"
   with check (auth.uid() = id);
 
 grant select on public.profiles to anon, authenticated;
-grant insert, update on public.profiles to authenticated;
+grant update (bio, skills, updated_at) on public.profiles to authenticated;
 
--- بروفايل تلقائي لأي مستخدم جديد يسجّل بعد كده
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  insert into public.profiles (id, full_name)
-  values (new.id, new.raw_user_meta_data->>'full_name')
-  on conflict (id) do nothing;
-  return new;
-end;
-$$;
-
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
-
--- Backfill آمن للحسابات الموجودة قبل الـ trigger ده (idempotent — ON CONFLICT DO NOTHING)
-insert into public.profiles (id, full_name, bio, skills)
-select
-  u.id,
-  u.raw_user_meta_data->>'full_name',
-  u.raw_user_meta_data->>'bio',
-  coalesce(
-    (select array_agg(value) from jsonb_array_elements_text(u.raw_user_meta_data->'skills')),
-    '{}'
-  )
+-- إصلاح الأسماء الفاضية اللي سببها الـ bug في signUpWithEmail (بس للصفوف
+-- المتأثرة فعلاً — مفيش لمس لأي display_name اتحط فعلاً بأي طريقة)
+update public.profiles p
+set display_name = u.raw_user_meta_data->>'full_name'
 from auth.users u
-on conflict (id) do nothing;
+where p.id = u.id
+  and p.display_name = ''
+  and coalesce(u.raw_user_meta_data->>'full_name', '') <> '';
 
 -- ============================================================
 -- course_enrollments

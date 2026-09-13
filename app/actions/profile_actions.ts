@@ -10,7 +10,7 @@ export interface ProfileActionResult {
 
 export interface Profile {
   id: string;
-  full_name: string | null;
+  display_name: string | null;
   bio: string | null;
   skills: string[];
 }
@@ -28,11 +28,11 @@ export async function getMyProfile(): Promise<Profile | null> {
 
   const { data } = await supabase
     .from("profiles")
-    .select("id, full_name, bio, skills")
+    .select("id, display_name, bio, skills")
     .eq("id", user.id)
     .maybeSingle();
 
-  return data ?? { id: user.id, full_name: null, bio: null, skills: [] };
+  return data ?? { id: user.id, display_name: null, bio: null, skills: [] };
 }
 
 export async function updateProfile(
@@ -47,9 +47,13 @@ export async function updateProfile(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "لازم تسجّل دخولك الأول." };
 
+  // .update() مش .upsert() — الصف دايمًا موجود بالفعل (بيتعمل تلقائي عند
+  // التسجيل عن طريق trigger حقيقي)، وصلاحية المستخدم على الجدول محدودة على
+  // عمود bio/skills/updated_at بس (upsert محتاج INSERT privilege مش متاحة)
   const { error } = await supabase
     .from("profiles")
-    .upsert({ id: user.id, bio, skills, updated_at: new Date().toISOString() });
+    .update({ bio, skills, updated_at: new Date().toISOString() })
+    .eq("id", user.id);
 
   if (error) return { error: "حصل خطأ، جرّب تاني بعد شوية." };
   revalidatePath("/profile");

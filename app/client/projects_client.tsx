@@ -65,7 +65,7 @@ export function ProjectsGrid({ projects, isAuthenticated }: { projects: ProjectW
                 </div>
               )}
               <p className="border-t border-dashed border-border pt-3 text-[.78rem] font-semibold text-slate-400">
-                {p.owner?.full_name ?? "طالب COCR"}
+                {p.owner?.display_name ?? "طالب COCR"}
               </p>
             </Link>
           ))}
@@ -297,7 +297,7 @@ function FeedbackSection({
       <div className="mb-5 flex flex-col gap-3">
         {feedback.map((f) => (
           <div key={f.id} className="rounded-xl border border-border p-3">
-            <p className="mb-1 text-[.8rem] font-bold text-slate-600">{f.author?.full_name ?? "طالب COCR"}</p>
+            <p className="mb-1 text-[.8rem] font-bold text-slate-600">{f.author?.display_name ?? "طالب COCR"}</p>
             <p className="text-[.88rem] text-muted-foreground">{f.body}</p>
           </div>
         ))}

@@ -20,7 +20,7 @@ export interface Project {
 }
 
 export interface ProjectWithOwner extends Project {
-  owner: { full_name: string | null } | null;
+  owner: { display_name: string | null } | null;
 }
 
 export interface ProjectFeedback {
@@ -29,7 +29,7 @@ export interface ProjectFeedback {
   author_id: string;
   body: string;
   created_at: string;
-  author: { full_name: string | null } | null;
+  author: { display_name: string | null } | null;
 }
 
 export interface ProjectActionResult {
@@ -42,7 +42,7 @@ export async function getPublishedProjects(): Promise<ProjectWithOwner[]> {
   const supabase = createClient(cookieStore);
   const { data } = await supabase
     .from("projects")
-    .select("*, owner:profiles(full_name)")
+    .select("*, owner:profiles(display_name)")
     .eq("status", "published")
     .order("created_at", { ascending: false });
 
@@ -55,7 +55,7 @@ export async function getProjectById(id: string): Promise<ProjectWithOwner | nul
   const supabase = createClient(cookieStore);
   const { data } = await supabase
     .from("projects")
-    .select("*, owner:profiles(full_name)")
+    .select("*, owner:profiles(display_name)")
     .eq("id", id)
     .maybeSingle();
 
@@ -192,7 +192,7 @@ export async function getProjectFeedback(projectId: string): Promise<ProjectFeed
   const supabase = createClient(cookieStore);
   const { data } = await supabase
     .from("project_feedback")
-    .select("*, author:profiles(full_name)")
+    .select("*, author:profiles(display_name)")
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
 

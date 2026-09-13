@@ -49,7 +49,10 @@ export async function signUpWithEmail(
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: name } },
+    // full_name: بيتقرا في أماكن تانية في الفرونت (navbar، تحية الداشبورد).
+    // display_name: ده اللي الـ trigger الحقيقي (handle_new_user) بيقراه
+    // فعليًا عشان يعمل profiles.display_name — من غيره كان بيفضل فاضي.
+    options: { data: { full_name: name, display_name: name } },
   });
 
   if (error) {

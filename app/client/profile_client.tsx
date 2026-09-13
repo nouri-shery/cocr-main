@@ -3,22 +3,23 @@
 import * as React from "react";
 import { useActionState } from "react";
 import Link from "next/link";
-import { LogOut, Pencil, Lock } from "lucide-react";
+import { LogOut, Pencil } from "lucide-react";
 import { signOut } from "@/components/homecomponent/auth/actions";
 import { updateProfile, type ProfileActionResult } from "../actions/profile_actions";
 import { getOnboarding, INTERESTS, STAGES, GOALS, type OnboardingData } from "../lib/onboarding";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { useSavedOpportunities } from "./opportunities_client";
 import type { Course, Mentor, OpportunityListing } from "../types/types";
+import type { Project } from "../actions/projects_actions";
 
 const initialState: ProfileActionResult = { error: null };
 
 export function ProfileClient({
-  name, email, bio, skills, startedCourses, mentorById, opportunities,
+  name, email, bio, skills, startedCourses, mentorById, opportunities, projects,
 }: {
   name: string; email: string; bio: string; skills: string[];
   startedCourses: Course[]; mentorById: Record<string, Mentor>;
-  opportunities: OpportunityListing[];
+  opportunities: OpportunityListing[]; projects: Project[];
 }) {
   const [onboarding, setOnboarding] = React.useState<OnboardingData | null>(null);
   const [editing, setEditing] = React.useState(false);
@@ -238,17 +239,29 @@ export function ProfileClient({
           )}
         </div>
 
-        {/* مشاريعك — قريبًا */}
+        {/* مشاريعك */}
         <div className="rounded-3xl border border-border bg-white p-6">
-          <div className="mb-3 flex items-center gap-2">
+          <div className="mb-5 flex items-center justify-between">
             <h2 className="text-[1.05rem] font-extrabold">مشاريعك</h2>
-            <span className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-[.72rem] font-bold text-muted-foreground">
-              <Lock className="h-3 w-3" /> قريبًا
-            </span>
+            <Link href="/projects/new" className="text-[.82rem] font-bold text-primary">+ مشروع جديد</Link>
           </div>
-          <p className="text-[.88rem] text-muted-foreground">
-            نظام رفع ومشاركة المشاريع لسه في الطريق — هيظهر هنا أول ما يبقى جاهز.
-          </p>
+          {projects.length === 0 ? (
+            <p className="text-[.9rem] text-muted-foreground">
+              لسه معملتش مشروع. <Link href="/projects/new" className="font-bold text-primary underline">أنشئ أول مشروع</Link>
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {projects.map((p) => (
+                <Link key={p.id} href={`/projects/${p.id}`} className="flex items-center gap-3 rounded-xl border border-border p-3 hover:border-primary/40">
+                  <Icon3D name="hammer" className="h-8 w-8" />
+                  <div className="flex-1">
+                    <p className="text-[.88rem] font-extrabold">{p.title}</p>
+                    <p className="text-[.76rem] text-muted-foreground">{p.status === "published" ? "منشور" : "مسودّة"}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

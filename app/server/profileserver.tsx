@@ -4,23 +4,27 @@ import { SiteFooter } from "./landingserver";
 import { getCurrentUser } from "@/lib/supabase/get-user";
 import { getCourses, getMentors } from "../actions/landing_page_actions";
 import { getOpportunities } from "../actions/opportunities_actions";
+import { getMyProfile, getMyEnrollments } from "../actions/profile_actions";
+import { getMyProjects } from "../actions/projects_actions";
 
 export async function ProfilePageContent() {
   const user = await getCurrentUser().catch(() => null);
   if (!user) redirect("/login?next=/profile");
 
-  const [courses, mentors, opportunities] = await Promise.all([
+  const [courses, mentors, opportunities, profile, enrollments, projects] = await Promise.all([
     getCourses(),
     getMentors(),
     getOpportunities(),
+    getMyProfile(),
+    getMyEnrollments(),
+    getMyProjects(),
   ]);
 
-  const name = (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "طالب COCR";
-  const bio = (user.user_metadata?.bio as string | undefined) ?? "";
-  const skills = (user.user_metadata?.skills as string[] | undefined) ?? [];
-  const startedCourseIds: { id: string; startedAt: string }[] = user.user_metadata?.startedCourses ?? [];
-  const startedCourses = startedCourseIds
-    .map((sc) => courses.find((c) => c.id === sc.id))
+  const name = profile?.full_name ?? (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "طالب COCR";
+  const bio = profile?.bio ?? "";
+  const skills = profile?.skills ?? [];
+  const startedCourses = enrollments
+    .map((e) => courses.find((c) => c.id === e.course_id))
     .filter((c): c is NonNullable<typeof c> => !!c);
   const mentorById = Object.fromEntries(mentors.map((m) => [m.id, m]));
 
@@ -46,6 +50,7 @@ export async function ProfilePageContent() {
           startedCourses={startedCourses}
           mentorById={mentorById}
           opportunities={opportunities}
+          projects={projects}
         />
       </div>
     </main>

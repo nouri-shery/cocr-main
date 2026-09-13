@@ -742,7 +742,7 @@ export function CtaSection() {
 }
 
 const FOOTER_COLS = [
-  { title: "المنصة", links: [["الرحلة", "/#journey"], ["أقسام المنصة", "/#sections"], ["المينتورز", "/#mentors"], ["الكورسات", "/courses"]] },
+  { title: "المنصة", links: [["الرحلة", "/#journey"], ["أقسام المنصة", "/#sections"], ["المينتورز", "/#mentors"], ["الكورسات", "/courses"], ["المشاريع", "/projects"]] },
   { title: "الفرص", links: [["الفعاليات", "/opportunities"], ["المنح", "/opportunities"], ["التطوع", "/opportunities"], ["المجتمع", "/#stories"]] },
   { title: "COCR", links: [["قصتنا", "/about"], ["مين COCR", "/#who"], ["Near Peer Learning", "/#nearpeer"], ["الأسئلة", "/#faq"], ["تواصل معانا", "/contact"]] },
 ];

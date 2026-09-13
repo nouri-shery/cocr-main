@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowRight, Clock, Radio, PlayCircle, Layers, Star, StarHalf, Users } from "lucide-react";
 import { CoursesExplorer, StartCourseButton } from "../client/courses_client";
 import { getCourses, getPopularCourses, getCourseCategories, getCourseById, getMentors, getMentorById } from "../actions/landing_page_actions";
+import { getMyEnrollments } from "../actions/profile_actions";
 import { SiteFooter } from "./landingserver";
 import { getCurrentUser } from "@/lib/supabase/get-user";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
@@ -99,12 +100,14 @@ export async function CourseDetailContent({ id }: { id: string }) {
   ]);
   if (!course) notFound();
 
-  const mentor = await getMentorById(course.mentorId);
+  const [mentor, enrollments] = await Promise.all([
+    getMentorById(course.mentorId),
+    user ? getMyEnrollments() : Promise.resolve([]),
+  ]);
   const a = ACCENT[course.accent];
   const FormatIcon = FORMAT_ICON[course.format];
   const sessions = sessionsSummary(course);
-  const startedCourses = (user?.user_metadata?.startedCourses ?? []) as { id: string; startedAt: string }[];
-  const alreadyStarted = startedCourses.some((c) => c.id === course.id);
+  const alreadyStarted = enrollments.some((e) => e.course_id === course.id);
 
   return (
     <>

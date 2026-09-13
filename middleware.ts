@@ -11,7 +11,7 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
  */
 const PROTECTED_PREFIXES = [
   "/dashboard", "/saved", "/profile", "/settings", "/progress", "/my-journey",
-  "/onboarding", "/opportunities/submit",
+  "/onboarding", "/opportunities/submit", "/projects/new",
 ];
 
 export async function middleware(request: NextRequest) {

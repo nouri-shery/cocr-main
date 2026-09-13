@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { GrowthLadder } from "./landing_client";
 import { getOnboarding, GOALS, INTEREST_TO_OPPORTUNITY_CATEGORY, INTEREST_TO_COURSE_CATEGORY, type OnboardingData } from "../lib/onboarding";
 import type { OpportunityListing, Course, Mentor, GrowthRung } from "../types/types";
+import type { Project } from "../actions/projects_actions";
 
 const ACCENT: Record<string, { bg: string }> = {
   blue: { bg: "#E9EEFC" },
@@ -29,10 +30,10 @@ type Recommendation =
   | { kind: "course"; item: Course };
 
 export function DashboardClient({
-  rungs, opportunities, courses, mentors, startedCourses,
+  rungs, opportunities, courses, mentors, startedCourses, projects,
 }: {
   rungs: GrowthRung[]; opportunities: OpportunityListing[]; courses: Course[]; mentors: Mentor[];
-  startedCourses: Course[];
+  startedCourses: Course[]; projects: Project[];
 }) {
   const [onboarding, setOnboarding] = React.useState<OnboardingData | null>(null);
   const [mentorModalOpen, setMentorModalOpen] = React.useState(false);
@@ -196,6 +197,48 @@ export function DashboardClient({
                 </Link>
               );
             })}
+          </div>
+        )}
+      </section>
+
+      {/* مشاريعك — بيانات حقيقية من جدول projects */}
+      <section className="mb-10">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-[1.2rem] font-extrabold">مشاريعك</h2>
+          <Link href="/projects/new" className="text-[.84rem] font-bold text-primary">+ مشروع جديد</Link>
+        </div>
+        {projects.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-sand px-6 py-10 text-center">
+            <Icon3D name="hammer" className="h-12 w-12 opacity-70" />
+            <p className="font-bold">لسه معملتش مشروع</p>
+            <p className="max-w-[26em] text-[.86rem] text-muted-foreground">اعمل مشروعك الأول واعرضه — ده اللي بيفرقك في أي إنترفيو.</p>
+            <Link href="/projects/new" className="mt-1 rounded-xl bg-primary px-5 py-2 text-[.86rem] font-extrabold text-white">
+              أنشئ مشروع
+            </Link>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {projects.slice(0, 3).map((p) => (
+              <Link
+                key={p.id}
+                href={`/projects/${p.id}`}
+                className="rounded-2xl border border-border bg-white p-4 transition-all hover:-translate-y-1 hover:shadow-[0_18px_38px_-20px_rgba(22,24,31,.32)]"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="grid h-10 w-10 place-items-center rounded-full bg-sand">
+                    <Icon3D name="hammer" className="h-5 w-5" />
+                  </span>
+                  <span className={
+                    p.status === "published"
+                      ? "rounded-full bg-green-50 px-2.5 py-1 text-[.68rem] font-bold text-green"
+                      : "rounded-full bg-muted px-2.5 py-1 text-[.68rem] font-bold text-muted-foreground"
+                  }>
+                    {p.status === "published" ? "منشور" : "مسودّة"}
+                  </span>
+                </div>
+                <p className="text-[.92rem] font-extrabold leading-snug">{p.title}</p>
+              </Link>
+            ))}
           </div>
         )}
       </section>

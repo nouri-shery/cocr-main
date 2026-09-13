@@ -16,19 +16,38 @@
 -- - projects + project_feedback: نظام مشاريع حقيقي بسيط، بدون mentor system
 --   مخترع — أي مستخدم مسجّل يقدر يسيب feedback على مشروع منشور مش بتاعه.
 
+-- الملف ده اتشغّل قبل كده وفشل عند الـ backfill (سطر profiles القديم) لأن
+-- public.profiles كانت موجودة بالفعل في المشروع قبل الـ migration ده (Supabase
+-- بيعمل الجدول ده تلقائي في مشاريع كتير)، وكانت شكلها مختلف — من غير عمود
+-- full_name. الـ SQL Editor بيشغّل كل حاجة كـ transaction واحدة، فالفشل ده
+-- رجّع كل حاجة قبله في نفس التشغيلة (RLS/policies/trigger) — يعني التشغيلة
+-- الأولى معملتش حاجة خالص، وإعادة تشغيل النسخة المصححة دي من الأول آمنة تمامًا.
+--
+-- الإصلاح: بدل ما نفترض شكل الجدول، بنضيف بس الأعمدة الناقصة (ALTER TABLE ADD
+-- COLUMN IF NOT EXISTS) — كده الملف بيشتغل صح سواء الجدول جديد أو كان موجود
+-- بشكل مختلف قبل كده، من غير ما نحتاج نعرف شكله بالظبط. شيلنا الـ CHECK
+-- constraint على طول bio من الداتابيز (كان بيحتاج منطق أعقد لو العمود موجود
+-- من قبل) والاعتماد بقى على التحقق الموجود أصلًا في التطبيق نفسه
+-- (app/actions/profile_actions.ts بيعمل .slice(0, 300) قبل الحفظ).
+
+begin;
+
 create extension if not exists pgcrypto;
 
 -- ============================================================
 -- profiles
 -- ============================================================
+-- الحد الأدنى لو الجدول مش موجود خالص على مشروع جديد
 create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  full_name text,
-  bio text check (char_length(bio) <= 300),
-  skills text[] not null default '{}',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  id uuid primary key references auth.users(id) on delete cascade
 );
+
+-- تضيف الأعمدة الناقصة بس — من غير أي افتراض عن شكل الجدول القديم
+alter table public.profiles add column if not exists full_name text;
+alter table public.profiles add column if not exists bio text;
+alter table public.profiles add column if not exists skills text[] not null default '{}';
+alter table public.profiles add column if not exists created_at timestamptz not null default now();
+alter table public.profiles add column if not exists updated_at timestamptz not null default now();
 
 alter table public.profiles enable row level security;
 
@@ -226,3 +245,5 @@ create policy "feedback_delete_own"
 
 grant select on public.project_feedback to anon, authenticated;
 grant insert, delete on public.project_feedback to authenticated;
+
+commit;

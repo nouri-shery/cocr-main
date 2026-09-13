@@ -53,7 +53,20 @@ export function ProfileClient({
         <p className="text-[1.05rem] font-extrabold">{name}</p>
         <p className="mt-1 text-[.85rem] text-muted-foreground">{email}</p>
 
-        <form action={signOut} className="mt-6">
+        <form
+          action={signOut}
+          className="mt-6"
+          onSubmit={() => {
+            // بيانات localStorage (مفتكرة/أونبوردينج) شخصية للجهاز مش للحساب —
+            // لازم تتمسح عند تسجيل الخروج عشان ما تختلطش مع حساب تاني على نفس الجهاز
+            try {
+              window.localStorage.removeItem("cocr-saved-opportunities");
+              window.localStorage.removeItem("cocr-onboarding");
+            } catch {
+              /* localStorage غير متاح — تسجيل الخروج يكمل عادي */
+            }
+          }}
+        >
           <button
             type="submit"
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-[.88rem] font-bold text-slate-600 hover:border-destructive/40 hover:text-destructive"

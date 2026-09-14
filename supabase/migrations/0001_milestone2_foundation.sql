@@ -67,7 +67,23 @@ create policy "profiles_update_own"
 revoke select on public.profiles from anon;
 grant select (id, display_name) on public.profiles to anon;
 grant select on public.profiles to authenticated;
+
+-- تصحيح أمان تاني: نفس الغلطة بالظبط بس في UPDATE — كان فيه GRANT UPDATE واسع
+-- على الجدول كله لـ authenticated من قبل الـ migration ده (من النظام الأصلي)،
+-- والمنحة الضيقة اللي تحت (bio, skills, updated_at) مكنتش بتلغيها لأن GRANTs في
+-- Postgres تراكمية — يعني أي طالب مسجّل دخول كان يقدر فعليًا يعدّل
+-- account_status بتاعه بنفسه (self-approval bypass) عن طريق طلب مباشر للـ API.
+-- اتأكد من المشكلة دي فعليًا (UPDATE ناجح من غير أي permission error) من غير
+-- ما نغيّر قيمة account_status حقيقية لأي حساب. REVOKE هنا ضروري قبل GRANT
+-- الضيق عشان يشتغل فعليًا.
+revoke update on public.profiles from authenticated;
 grant update (bio, skills, updated_at) on public.profiles to authenticated;
+
+-- تحصين احتياطي: التطبيق مالوش أي استخدام حقيقي لحذف صف profiles مباشرة (صف
+-- المستخدم بيتمسح تلقائي عن طريق on delete cascade من auth.users)، فمفيش سبب
+-- يكون عند authenticated صلاحية DELETE على الجدول ده أصلًا — بنقفلها احتياطيًا
+-- من غير ما نحتاج نجرّبها على صف حقيقي (تجربة DELETE فعلية خطر مش مضمون).
+revoke delete on public.profiles from authenticated, anon;
 
 -- إصلاح الأسماء الفاضية اللي سببها الـ bug في signUpWithEmail (بس للصفوف
 -- المتأثرة فعلاً — مفيش لمس لأي display_name اتحط فعلاً بأي طريقة)

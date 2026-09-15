@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Search, Clock, Radio, PlayCircle, Layers, Star, StarHalf, Users, UserPlus, X,
+  CheckCircle2, Circle, Lock, ArrowLeft, ArrowRight, PartyPopper,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,12 +13,14 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { cn } from "@/lib/utils";
 import { getOnboarding, INTEREST_TO_COURSE_CATEGORY } from "../lib/onboarding";
 import { AuthPrompt } from "./auth-prompt";
 import { Reveal } from "./landing_client";
 import { startCourse } from "../actions/profile_actions";
+import { completeLesson, type LessonSummary, type LessonDetail } from "../actions/lessons_actions";
 import type { Course, CourseCategory, CourseFormat, Mentor } from "../types/types";
 
 const ACCENT: Record<string, { bg: string; fg: string; dot: string }> = {
@@ -393,11 +396,18 @@ function CourseDialog({
 
 /**
  * زرار "ابدأ الكورس" في صفحة تفاصيل الكورس — بيسجّل بداية حقيقية على حساب
- * المستخدم (مش فيك داتا)، بس من غير أي ادّعاء بتقدّم أو دروس فعلية لسه.
+ * المستخدم (مش فيك داتا). لو فيه دروس حقيقية منشورة للكورس ده، الزرار بعد
+ * ما يبدأ يتحول لـ "كمّل الكورس" (بيودّي لأول درس لسه مكملوش) أو "الكورس
+ * مكتمل" لو خلّص كل الدروس — كل ده مبني على lesson_progress حقيقي، مش
+ * ادّعاء. لو مفيش دروس حقيقية لسه، سلوكه زي الأول بالظبط (بدأت الكورس ✅).
  */
 export function StartCourseButton({
   courseId, isAuthenticated, alreadyStarted, accentFg,
-}: { courseId: string; isAuthenticated: boolean; alreadyStarted: boolean; accentFg: string }) {
+  totalLessons = 0, completedLessons = 0, nextLessonId,
+}: {
+  courseId: string; isAuthenticated: boolean; alreadyStarted: boolean; accentFg: string;
+  totalLessons?: number; completedLessons?: number; nextLessonId?: string | null;
+}) {
   const [authPromptOpen, setAuthPromptOpen] = React.useState(false);
   const [started, setStarted] = React.useState(alreadyStarted);
   const [failed, setFailed] = React.useState(false);
@@ -417,6 +427,29 @@ export function StartCourseButton({
       }
     });
   };
+
+  if (started && totalLessons > 0 && completedLessons >= totalLessons) {
+    return (
+      <div
+        className="flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl text-[.95rem] font-extrabold text-white"
+        style={{ background: "#1E7A4E" }}
+      >
+        <PartyPopper className="h-4 w-4" /> الكورس مكتمل
+      </div>
+    );
+  }
+
+  if (started && totalLessons > 0 && nextLessonId) {
+    return (
+      <Link
+        href={`/courses/${courseId}/lessons/${nextLessonId}`}
+        className="flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl text-[.95rem] font-extrabold text-white"
+        style={{ background: accentFg }}
+      >
+        {completedLessons > 0 ? "كمّل الكورس" : "ابدأ أول درس"}
+      </Link>
+    );
+  }
 
   return (
     <>
@@ -439,6 +472,297 @@ export function StartCourseButton({
         description="اعمل حساب مجاني في COCR عشان تقدر تبدأ الكورس، وتتابع تقدّمك فيه."
       />
     </>
+  );
+}
+
+/** ملخّص التقدّم (X من Y دروس) + progress bar — صفحة تفاصيل الكورس */
+export function CourseProgressSummary({
+  completed, total, accentFg,
+}: { completed: number; total: number; accentFg: string }) {
+  if (total === 0) return null;
+  const pct = Math.round((completed / total) * 100);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between text-[.84rem] font-bold text-slate-600">
+        <span>{completed} من {total} دروس مكتملة</span>
+        <span style={{ color: accentFg }}>{pct}%</span>
+      </div>
+      <Progress value={pct} />
+    </div>
+  );
+}
+
+/** قائمة الدروس (syllabus) — صفحة تفاصيل الكورس */
+export function LessonSyllabus({
+  courseId, lessons, completedLessonIds, isAuthenticated, accentFg,
+}: {
+  courseId: string; lessons: LessonSummary[]; completedLessonIds: string[];
+  isAuthenticated: boolean; accentFg: string;
+}) {
+  const [authPromptOpen, setAuthPromptOpen] = React.useState(false);
+  const completedSet = React.useMemo(() => new Set(completedLessonIds), [completedLessonIds]);
+
+  if (lessons.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-sand px-6 py-8 text-center">
+        <Icon3D name="build" className="h-10 w-10 opacity-70" />
+        <p className="font-bold">لسه مفيش دروس متاحة للكورس ده</p>
+        <p className="max-w-[26em] text-[.84rem] text-muted-foreground">هنضيفها قريب — تقدر تبدأ الكورس عشان تحجز مكانك دلوقتي.</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border">
+        {lessons.map((lesson, i) => {
+          const isDone = completedSet.has(lesson.id);
+          const content = (
+            <>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center text-slate-400">
+                {isDone ? <CheckCircle2 className="h-5 w-5" style={{ color: accentFg }} /> : <Circle className="h-5 w-5" />}
+              </span>
+              <span className="flex-1 text-[.9rem] font-bold">{i + 1}. {lesson.title}</span>
+              {!isAuthenticated && <Lock className="h-4 w-4 shrink-0 text-slate-400" />}
+            </>
+          );
+          return (
+            <li key={lesson.id}>
+              {isAuthenticated ? (
+                <Link href={`/courses/${courseId}/lessons/${lesson.id}`} className="flex items-center gap-3 bg-white px-4 py-3.5 transition-colors hover:bg-sand">
+                  {content}
+                </Link>
+              ) : (
+                <button onClick={() => setAuthPromptOpen(true)} className="flex w-full items-center gap-3 bg-white px-4 py-3.5 text-start transition-colors hover:bg-sand">
+                  {content}
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <AuthPrompt
+        open={authPromptOpen}
+        onOpenChange={setAuthPromptOpen}
+        title="عايز تفتح الدرس ده؟"
+        description="اعمل حساب مجاني في COCR عشان تقدر تفتح الدروس وتتابع تقدّمك."
+      />
+    </>
+  );
+}
+
+/**
+ * محوّل markdown خفيف لمحتوى الدرس — بيدعم بس اللي محتاجينه فعليًا (مفيش
+ * محرّر/CMS جديد، ومفيش تغيير في الـschema، عمود content فاضل text عادي):
+ * ## / ### عناوين، فقرات، قوائم (- أو 1.)، ```code blocks``` (بتفضل LTR حتى
+ * جوّه صفحة RTL)، **bold**، *italic*، و`inline code`. كمان بيمرّر
+ * <details><summary> زي ما هي (raw HTML) — الطريقة الوحيدة المستخدمة في
+ * المحتوى ده لعمل "اضغط تشوف" للـ hints وإجابات الأسئلة، من غير أي نظام
+ * quiz/hint تفاعلي جديد — الـ<details> عنصر HTML عادي بيتعامل مع الفتح/القفل
+ * بنفسه. آمن هنا تحديدًا لأن المحتوى ده admin-authored بس (مفيش أي مستخدم
+ * بيكتب فيه)، مش زي أي حقل نص بيكتبه المستخدمين في باقي الموقع.
+ */
+function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g).filter(Boolean);
+  return parts.map((part, i) => {
+    const key = `${keyPrefix}-${i}`;
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={key}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return <code key={key} dir="ltr" className="rounded bg-sand px-1.5 py-0.5 text-[.88em]">{part.slice(1, -1)}</code>;
+    }
+    if (part.startsWith("*") && part.endsWith("*")) {
+      return <em key={key}>{part.slice(1, -1)}</em>;
+    }
+    return <React.Fragment key={key}>{part}</React.Fragment>;
+  });
+}
+
+function LessonContent({ content }: { content: string }) {
+  const lines = content.split("\n");
+  const blocks: React.ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (line.trim() === "") { i++; continue; }
+
+    // ```lang ... ``` — كود، بيفضل LTR
+    if (line.trim().startsWith("```")) {
+      const lang = line.trim().slice(3).trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith("```")) { codeLines.push(lines[i]); i++; }
+      i++;
+      blocks.push(
+        <pre
+          key={key++}
+          dir="ltr"
+          ref={(el) => { if (el) el.scrollLeft = 0; }}
+          className="overflow-x-auto rounded-xl bg-[#1E1F26] p-4 text-start text-[.86rem] leading-[1.7] text-[#E9E9EC]"
+        >
+          <code data-lang={lang || undefined}>{codeLines.join("\n")}</code>
+        </pre>
+      );
+      continue;
+    }
+
+    // <details><summary>عنوان</summary> ... </details> — بيتقرا كعناصر React
+    // حقيقية (مش raw HTML injection) — عشان "اضغط تشوف" للـ hints/الإجابات
+    // من غير أي خطر XSS حتى لو المحتوى اتغيّر من غير مراجعة كافية لاحقًا.
+    if (line.trim().startsWith("<details")) {
+      i++;
+      let summaryText = "";
+      const summaryMatch = lines[i]?.match(/^\s*<summary>(.*)<\/summary>\s*$/);
+      if (summaryMatch) { summaryText = summaryMatch[1]; i++; }
+      const bodyLines: string[] = [];
+      while (i < lines.length && lines[i].trim() !== "</details>") { bodyLines.push(lines[i]); i++; }
+      i++; // تخطي </details>
+      blocks.push(
+        <details key={key++} className="group rounded-xl border border-dashed border-border bg-sand p-4 open:bg-white">
+          <summary className="cursor-pointer text-[.9rem] font-extrabold text-primary">{summaryText || "اضغط تشوف"}</summary>
+          <div className="mt-2 text-[.95rem] leading-[1.8]">
+            <LessonContent content={bodyLines.join("\n")} />
+          </div>
+        </details>
+      );
+      continue;
+    }
+
+    // ## / ### عناوين
+    const headingMatch = line.match(/^(#{2,3})\s+(.*)/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const text = renderInline(headingMatch[2], `h${key}`);
+      blocks.push(
+        level === 2
+          ? <h2 key={key++} className="mt-2 text-[1.2rem] font-extrabold">{text}</h2>
+          : <h3 key={key++} className="mt-2 text-[1.05rem] font-extrabold">{text}</h3>
+      );
+      i++;
+      continue;
+    }
+
+    // - / * قوائم بدون ترقيم
+    if (/^[-*]\s+/.test(line.trim())) {
+      const items: string[] = [];
+      while (i < lines.length && /^[-*]\s+/.test(lines[i].trim())) { items.push(lines[i].trim().replace(/^[-*]\s+/, "")); i++; }
+      blocks.push(
+        <ul key={key++} className="list-disc ps-5 [&>li]:mt-1">
+          {items.map((it, idx) => <li key={idx}>{renderInline(it, `ul${key}-${idx}`)}</li>)}
+        </ul>
+      );
+      continue;
+    }
+
+    // 1. 2. 3. قوائم مرقّمة
+    if (/^\d+\.\s+/.test(line.trim())) {
+      const items: string[] = [];
+      while (i < lines.length && /^\d+\.\s+/.test(lines[i].trim())) { items.push(lines[i].trim().replace(/^\d+\.\s+/, "")); i++; }
+      blocks.push(
+        <ol key={key++} className="list-decimal ps-5 [&>li]:mt-1">
+          {items.map((it, idx) => <li key={idx}>{renderInline(it, `ol${key}-${idx}`)}</li>)}
+        </ol>
+      );
+      continue;
+    }
+
+    // A. / B. / C. اختيارات أسئلة — بتتعرض كقائمة، مش سطر واحد متلزّق
+    if (/^[A-Da-d]\.\s+/.test(line.trim())) {
+      const items: string[] = [];
+      while (i < lines.length && /^[A-Da-d]\.\s+/.test(lines[i].trim())) { items.push(lines[i].trim()); i++; }
+      blocks.push(
+        <ul key={key++} className="flex flex-col gap-1 ps-1">
+          {items.map((it, idx) => <li key={idx} className="list-none">{renderInline(it, `opt${key}-${idx}`)}</li>)}
+        </ul>
+      );
+      continue;
+    }
+
+    // فقرة عادية — بتجمع الأسطر المتتالية
+    const paraLines: string[] = [];
+    while (i < lines.length && lines[i].trim() !== "" && !lines[i].trim().startsWith("```") && !lines[i].trim().startsWith("<details") && !/^(#{2,3})\s/.test(lines[i]) && !/^[-*]\s+/.test(lines[i].trim()) && !/^\d+\.\s+/.test(lines[i].trim()) && !/^[A-Da-d]\.\s+/.test(lines[i].trim())) {
+      paraLines.push(lines[i]);
+      i++;
+    }
+    blocks.push(<p key={key++}>{renderInline(paraLines.join(" "), `p${key}`)}</p>);
+  }
+
+  return <>{blocks}</>;
+}
+
+/** محتوى الدرس نفسه + التنقل والتعليم كمكتمل — صفحة /courses/[id]/lessons/[lessonId] */
+export function LessonViewer({
+  lesson, courseId, courseTitle, isCompleted, prevLesson, nextLesson, accentFg,
+}: {
+  lesson: LessonDetail; courseId: string; courseTitle: string; isCompleted: boolean;
+  prevLesson: LessonSummary | null; nextLesson: LessonSummary | null; accentFg: string;
+}) {
+  const [done, setDone] = React.useState(isCompleted);
+  const [pending, startTransition] = React.useTransition();
+  const [failed, setFailed] = React.useState(false);
+
+  const handleComplete = () => {
+    if (done || pending) return;
+    setFailed(false);
+    startTransition(async () => {
+      const result = await completeLesson(lesson.id, courseId);
+      if (result.ok) setDone(true);
+      else setFailed(true);
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <Link href={`/courses/${courseId}`} className="mb-4 inline-flex items-center gap-2 text-[.88rem] font-bold text-primary">
+          <ArrowRight className="h-4 w-4" /> رجوع لـ {courseTitle}
+        </Link>
+        <span className="mb-1.5 block text-[.78rem] font-extrabold tracking-wide text-slate-400">
+          درس {lesson.order_index}
+        </span>
+        <h1 className="text-[clamp(1.4rem,2.8vw,1.9rem)] font-extrabold leading-tight">{lesson.title}</h1>
+        {lesson.summary && <p className="mt-2 text-[.95rem] text-muted-foreground">{lesson.summary}</p>}
+      </div>
+
+      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-white p-6 text-[1rem] leading-[1.9]">
+        {lesson.content_type === "video" || lesson.content_type === "link" ? (
+          <a href={lesson.content} target="_blank" rel="noreferrer" className="font-bold text-primary underline">
+            افتح المحتوى ↗
+          </a>
+        ) : lesson.content ? (
+          <LessonContent content={lesson.content} />
+        ) : (
+          "المحتوى مش متاح لسه."
+        )}
+      </div>
+
+      <button
+        onClick={handleComplete}
+        disabled={pending || done}
+        className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl text-[.92rem] font-extrabold text-white disabled:cursor-default sm:w-auto sm:px-8"
+        style={{ background: done ? "#1E7A4E" : accentFg, opacity: pending ? 0.7 : 1 }}
+      >
+        {done ? "الدرس مكتمل ✅" : pending ? "لحظة..." : "علّم الدرس كمكتمل"}
+      </button>
+      {failed && <p className="text-[.82rem] font-semibold text-destructive">حصل خطأ، جرّب تاني بعد شوية.</p>}
+
+      <div className="flex items-center justify-between gap-3 border-t border-border pt-5">
+        {prevLesson ? (
+          <Link href={`/courses/${courseId}/lessons/${prevLesson.id}`} className="flex items-center gap-1.5 text-[.86rem] font-bold text-slate-600 hover:text-foreground">
+            <ArrowRight className="h-4 w-4" /> الدرس السابق
+          </Link>
+        ) : <span />}
+        {nextLesson ? (
+          <Link href={`/courses/${courseId}/lessons/${nextLesson.id}`} className="flex items-center gap-1.5 text-[.86rem] font-bold text-slate-600 hover:text-foreground">
+            الدرس التالي <ArrowLeft className="h-4 w-4" />
+          </Link>
+        ) : <span />}
+      </div>
+    </div>
   );
 }
 

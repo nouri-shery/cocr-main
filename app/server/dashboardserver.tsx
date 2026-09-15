@@ -1,30 +1,87 @@
 import { redirect } from "next/navigation";
 import { DashboardClient } from "../client/dashboard_client";
-import { getGrowthLadder, getCourses, getMentors } from "../actions/landing_page_actions";
+import { getCourses, getMentors } from "../actions/landing_page_actions";
 import { getOpportunities } from "../actions/opportunities_actions";
 import { getMyEnrollments } from "../actions/profile_actions";
-import { getMyProjects } from "../actions/projects_actions";
+import { getMyProjects, getMyRecentFeedback } from "../actions/projects_actions";
+import { getMyProgressForCourses, getNextLessonForCourse } from "../actions/lessons_actions";
 import { SiteFooter } from "./landingserver";
 import { getCurrentUser } from "@/lib/supabase/get-user";
+
+export interface NextMove {
+  label: string;
+  href: string;
+}
+
+export interface JourneyMilestone {
+  label: string;
+  done: boolean;
+}
 
 export async function DashboardPageContent() {
   const user = await getCurrentUser().catch(() => null);
   if (!user) redirect("/login?next=/dashboard");
 
-  const [rungs, opportunities, courses, mentors, enrollments, projects] = await Promise.all([
-    getGrowthLadder(),
+  const [opportunities, courses, mentors, enrollments, projects, recentFeedback] = await Promise.all([
     getOpportunities(),
     getCourses(),
     getMentors(),
     getMyEnrollments(),
     getMyProjects(),
+    getMyRecentFeedback(3),
   ]);
 
   const displayName = (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "";
   const firstName = displayName.split(" ")[0] || "بطل";
+  // enrollments مرتّبة started_at الأحدث الأول (getMyEnrollments) — startedCourseItems[0]
+  // هو أحدث كورس بدأه الطالب فعليًا، مش افتراض
   const startedCourseItems = enrollments
     .map((e) => courses.find((c) => c.id === e.course_id))
     .filter((c): c is NonNullable<typeof c> => !!c);
+
+  const startedCourseIds = startedCourseItems.map((c) => c.id);
+  const [progressByCourse, nextLessonEntries] = await Promise.all([
+    getMyProgressForCourses(startedCourseIds),
+    Promise.all(startedCourseIds.map(async (id) => [id, await getNextLessonForCourse(id)] as const)),
+  ]);
+  const nextLessonByCourse = Object.fromEntries(nextLessonEntries);
+  const startedCoursesWithProgress = startedCourseItems.map((course) => ({
+    course,
+    completed: progressByCourse[course.id]?.completed ?? 0,
+    total: progressByCourse[course.id]?.total ?? 0,
+    nextLesson: nextLessonByCourse[course.id] ?? null,
+  }));
+
+  // نفضّل كورس عنده درس حقيقي فعلي يكمّله — مش مجرد أحدث enrollment، عشان
+  // الـhero يعرض حاجة قابلة للتنفيذ فعلاً بدل "لسه مفيش دروس" لو فيه كورس
+  // تاني مبدوء وعنده محتوى حقيقي
+  const currentLearning = startedCoursesWithProgress.find((c) => c.nextLesson) ?? startedCoursesWithProgress[0] ?? null;
+
+  // Your Next Moves — بيتغيّر حسب حالة الطالب الحقيقية، مش قائمة ثابتة
+  const nextMoves: NextMove[] = [];
+  if (startedCoursesWithProgress.length === 0) {
+    nextMoves.push({ label: "اكتشف كورس", href: "/courses" });
+  } else {
+    const withNextLesson = startedCoursesWithProgress.find((c) => c.nextLesson);
+    if (withNextLesson) {
+      nextMoves.push({ label: "كمّل الدرس", href: `/courses/${withNextLesson.course.id}/lessons/${withNextLesson.nextLesson!.id}` });
+    }
+  }
+  if (projects.length === 0) {
+    nextMoves.push({ label: "ابنِ أول مشروع", href: "/projects/new" });
+  } else {
+    const draft = projects.find((p) => p.status === "draft");
+    nextMoves.push(draft ? { label: "كمّل مشروعك", href: `/projects/${draft.id}` } : { label: "افتح مشاريعك", href: "/projects" });
+  }
+
+  // Your COCR Journey — milestones محسوبة من بيانات حقيقية، مش XP/ranking
+  const totalCompletedLessons = Object.values(progressByCourse).reduce((sum, p) => sum + p.completed, 0);
+  const journey: JourneyMilestone[] = [
+    { label: "بدأت أول كورس", done: enrollments.length > 0 },
+    { label: "خلصت أول درس", done: totalCompletedLessons > 0 },
+    { label: "بنيت أول مشروع", done: projects.length > 0 },
+    { label: "حصلت على Feedback", done: recentFeedback.length > 0 },
+  ];
 
   return (
     <>
@@ -44,12 +101,14 @@ export async function DashboardPageContent() {
         </div>
 
         <DashboardClient
-          rungs={rungs}
           opportunities={opportunities}
-          courses={courses}
           mentors={mentors}
-          startedCourses={startedCourseItems}
+          startedCourses={startedCoursesWithProgress}
+          currentLearning={currentLearning}
+          nextMoves={nextMoves}
+          journey={journey}
           projects={projects}
+          recentFeedback={recentFeedback}
         />
       </div>
     </main>

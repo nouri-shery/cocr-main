@@ -1,11 +1,16 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { notFound, redirect } from "next/navigation";
 import { ArrowRight, Clock, Radio, PlayCircle, Layers, Star, StarHalf, Users } from "lucide-react";
-import { CoursesExplorer, StartCourseButton } from "../client/courses_client";
+import { CoursesExplorer, StartCourseButton, CourseProgressSummary, LessonSyllabus, LessonViewer } from "../client/courses_client";
 import { getCourses, getPopularCourses, getCourseCategories, getCourseById, getMentors, getMentorById } from "../actions/landing_page_actions";
 import { getMyEnrollments } from "../actions/profile_actions";
+import {
+  getCourseSyllabus, getMyCompletedLessonIds, getCourseProgress, getNextLessonForCourse, getLessonWithContent,
+} from "../actions/lessons_actions";
 import { SiteFooter } from "./landingserver";
 import { getCurrentUser } from "@/lib/supabase/get-user";
+import { createClient } from "@/lib/supabase/server";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { Badge } from "@/components/ui/badge";
 import type { CourseFormat } from "../types/types";
@@ -93,16 +98,29 @@ export async function CoursesPageContent() {
   );
 }
 
+/** بيرجع false بس لو فيه صف صريح في courses.published = false — أي حاجة تانية (مفيش صف، أو الجدول لسه مش موجود) بتفضل متاحة زي ما هي دلوقتي */
+async function isCoursePublished(id: string): Promise<boolean> {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const { data } = await supabase.from("courses").select("published").eq("id", id).maybeSingle();
+  return data?.published !== false;
+}
+
 export async function CourseDetailContent({ id }: { id: string }) {
-  const [course, user] = await Promise.all([
+  const [course, user, published] = await Promise.all([
     getCourseById(id),
     getCurrentUser().catch(() => null),
+    isCoursePublished(id),
   ]);
-  if (!course) notFound();
+  if (!course || !published) notFound();
 
-  const [mentor, enrollments] = await Promise.all([
+  const [mentor, enrollments, syllabus, completedLessonIds, progress, nextLesson] = await Promise.all([
     getMentorById(course.mentorId),
     user ? getMyEnrollments() : Promise.resolve([]),
+    getCourseSyllabus(course.id),
+    user ? getMyCompletedLessonIds(course.id) : Promise.resolve([]),
+    getCourseProgress(course.id),
+    user ? getNextLessonForCourse(course.id) : Promise.resolve(null),
   ]);
   const a = ACCENT[course.accent];
   const FormatIcon = FORMAT_ICON[course.format];
@@ -139,6 +157,10 @@ export async function CourseDetailContent({ id }: { id: string }) {
               <span className="flex items-center gap-1.5">
                 <FormatIcon className="h-4 w-4" style={{ color: a.fg }} /> {FORMAT_LABEL[course.format]}
               </span>
+              <span className="flex items-center gap-1.5">
+                <Layers className="h-4 w-4" style={{ color: a.fg }} />
+                {progress.total > 0 ? `${progress.total} درس متاح` : "الدروس هتضاف قريب"}
+              </span>
             </div>
             {sessions && <p className="text-[.85rem] font-semibold text-slate-500">{sessions}</p>}
 
@@ -169,8 +191,20 @@ export async function CourseDetailContent({ id }: { id: string }) {
               </div>
             )}
 
+            {alreadyStarted && (
+              <CourseProgressSummary completed={progress.completed} total={progress.total} accentFg={a.fg} />
+            )}
+
             <div className="mt-2">
-              <StartCourseButton courseId={course.id} isAuthenticated={!!user} alreadyStarted={alreadyStarted} accentFg={a.fg} />
+              <StartCourseButton
+                courseId={course.id}
+                isAuthenticated={!!user}
+                alreadyStarted={alreadyStarted}
+                accentFg={a.fg}
+                totalLessons={progress.total}
+                completedLessons={progress.completed}
+                nextLessonId={nextLesson?.id}
+              />
             </div>
 
             <p className="text-[.76rem] text-slate-400">
@@ -178,6 +212,56 @@ export async function CourseDetailContent({ id }: { id: string }) {
             </p>
           </div>
         </div>
+
+        <div className="mt-8">
+          <h2 className="mb-3 text-[1.05rem] font-extrabold">محتوى الكورس</h2>
+          <LessonSyllabus
+            courseId={course.id}
+            lessons={syllabus}
+            completedLessonIds={completedLessonIds}
+            isAuthenticated={!!user}
+            accentFg={a.fg}
+          />
+        </div>
+      </div>
+    </main>
+    <SiteFooter />
+    </>
+  );
+}
+
+export async function LessonPageContent({ courseId, lessonId }: { courseId: string; lessonId: string }) {
+  const user = await getCurrentUser().catch(() => null);
+  if (!user) redirect(`/login?next=/courses/${courseId}/lessons/${lessonId}`);
+
+  const [course, published, lesson, syllabus, completedLessonIds] = await Promise.all([
+    getCourseById(courseId),
+    isCoursePublished(courseId),
+    getLessonWithContent(lessonId),
+    getCourseSyllabus(courseId),
+    getMyCompletedLessonIds(courseId),
+  ]);
+  if (!course || !published || !lesson || lesson.course_id !== courseId) notFound();
+
+  const index = syllabus.findIndex((l) => l.id === lessonId);
+  const prevLesson = index > 0 ? syllabus[index - 1] : null;
+  const nextLesson = index >= 0 && index < syllabus.length - 1 ? syllabus[index + 1] : null;
+  const a = ACCENT[course.accent];
+
+  return (
+    <>
+    <main className="relative overflow-hidden bg-cream pb-[100px] pt-[52px]">
+      <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
+      <div className="relative z-[2] mx-auto max-w-[820px] px-7">
+        <LessonViewer
+          lesson={lesson}
+          courseId={courseId}
+          courseTitle={course.title}
+          isCompleted={completedLessonIds.includes(lessonId)}
+          prevLesson={prevLesson}
+          nextLesson={nextLesson}
+          accentFg={a.fg}
+        />
       </div>
     </main>
     <SiteFooter />

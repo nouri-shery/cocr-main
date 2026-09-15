@@ -199,6 +199,31 @@ export async function getProjectFeedback(projectId: string): Promise<ProjectFeed
   return (data as ProjectFeedback[] | null) ?? [];
 }
 
+export interface RecentFeedback extends ProjectFeedback {
+  project: { id: string; title: string };
+}
+
+/**
+ * آخر feedback وصل على أي مشروع من مشاريع المستخدم الحالي — للداشبورد.
+ * بيستخدم project_feedback!inner(project) عشان يفلتر على owner_id بتاع
+ * المشروع المرتبط، مش عمود موجود على project_feedback نفسها.
+ */
+export async function getMyRecentFeedback(limit = 3): Promise<RecentFeedback[]> {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("project_feedback")
+    .select("*, project:projects!inner(id, title, owner_id), author:profiles(display_name)")
+    .eq("project.owner_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  return (data as RecentFeedback[] | null) ?? [];
+}
+
 export async function submitFeedback(
   projectId: string, _prev: ProjectActionResult, formData: FormData,
 ): Promise<ProjectActionResult> {

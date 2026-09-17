@@ -100,12 +100,24 @@ export function DashboardClient({
         </section>
       )}
 
-      {/* 4. مشاريعك — بيانات حقيقية من جدول projects */}
+      {/* 4. مشاريعك — بيانات حقيقية من جدول projects. أعداد المسودّات/المنشورة
+          حقيقية (status الحقيقي بس — مفيش حالة "قيد المراجعة" في الـschema
+          دلوقتي، فمش بنعرضها) */}
       <section>
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-[1.2rem] font-extrabold">مشاريعك</h2>
-          <Link href="/projects/new" className="text-[.84rem] font-bold text-primary">+ مشروع جديد</Link>
+          <div className="flex items-center gap-3">
+            {projects.length > 3 && (
+              <Link href="/projects" className="text-[.84rem] font-bold text-slate-500 hover:text-foreground">شوف كل مشاريعك</Link>
+            )}
+            <Link href="/projects/new" className="text-[.84rem] font-bold text-primary">+ مشروع جديد</Link>
+          </div>
         </div>
+        {projects.length > 0 && (
+          <p className="mb-4 text-[.82rem] font-semibold text-slate-500">
+            {projects.filter((p) => p.status === "draft").length} مسودّة · {projects.filter((p) => p.status === "published").length} منشورة
+          </p>
+        )}
         {projects.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-sand px-6 py-10 text-center">
             <Icon3D name="hammer" className="h-12 w-12 opacity-70" />

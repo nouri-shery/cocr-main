@@ -1,10 +1,34 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getPublishedProjects, getProjectById, getProjectFeedback } from "../actions/projects_actions";
-import { ProjectsGrid, NewProjectForm, ProjectDetail, BackToProjects } from "../client/projects_client";
+import { ProjectsGrid, NewProjectForm, ProjectDetail, BackToProjects, ShareProjectCta } from "../client/projects_client";
 import { SiteFooter } from "./landingserver";
 import { getCurrentUser } from "@/lib/supabase/get-user";
-import { AppPageHeader } from "@/components/homecomponent/app-page-header";
+
+/** هيرو مخصّص لصفحة /projects بس — مش AppPageHeader المشترك، عشان الصفحة
+ * دي تحديدًا محتاجة تحس إنها واجهة معرض/بورتفوليو مش مجرد عنوان صفحة
+ * منتج زي باقي الصفحات. AppPageHeader نفسه متغيّرش، فباقي الصفحات
+ * (dashboard/courses/...) مش متأثرة */
+function ProjectsHero({ isAuthenticated }: { isAuthenticated: boolean }) {
+  return (
+    <div className="mb-12 flex flex-col items-start gap-6 border-b border-border pb-10 lg:flex-row lg:items-end lg:justify-between">
+      <div className="max-w-[36em]">
+        <span className="mb-3 block text-[.78rem] font-extrabold tracking-[.16em] text-gold-600">المشاريع</span>
+        <h1 className="mb-4 text-[clamp(1.8rem,3.6vw,2.6rem)] font-extrabold leading-[1.25] tracking-tight">
+          مش كل اللي اتعلمته بيتكتب في شهادة.
+          <br />
+          بعضه بيتبني.
+        </h1>
+        <p className="text-[1rem] leading-relaxed text-muted-foreground">
+          شوف مشاريع طلاب COCR، اتعلم من اللي بنوه، وشارك الحاجة اللي إنت بتبنيها.
+        </p>
+      </div>
+      <ShareProjectCta
+        isAuthenticated={isAuthenticated}
+        className="flex min-h-[50px] shrink-0 items-center justify-center rounded-xl bg-primary px-6 text-[.95rem] font-extrabold text-white transition-transform hover:-translate-y-0.5"
+      />
+    </div>
+  );
+}
 
 export async function ProjectsPageContent() {
   const [projects, user] = await Promise.all([
@@ -17,15 +41,7 @@ export async function ProjectsPageContent() {
     <main className="relative overflow-hidden bg-cream pb-[100px] pt-[52px]">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] mx-auto max-w-[1160px] px-7">
-        <AppPageHeader
-          title="المشاريع"
-          context="مشاريع حقيقية عملها طلاب COCR — شوفها وسيب ملاحظة تساعدهم."
-          actions={user ? (
-            <Link href="/projects/new" className="rounded-xl bg-primary px-4 py-2.5 text-[.86rem] font-extrabold text-white">
-              + مشروع جديد
-            </Link>
-          ) : undefined}
-        />
+        <ProjectsHero isAuthenticated={!!user} />
 
         <ProjectsGrid projects={projects} isAuthenticated={!!user} />
       </div>

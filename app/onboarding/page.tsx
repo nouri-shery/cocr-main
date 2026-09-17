@@ -6,8 +6,9 @@ import { Check } from "lucide-react";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { saveOnboardingData } from "../actions/profile_actions";
 import {
-  STAGES, INTERESTS, GOALS, saveOnboarding,
+  STAGES, INTERESTS, GOALS,
   type StageId, type InterestId, type GoalId,
 } from "../lib/onboarding";
 
@@ -30,14 +31,16 @@ export default function OnboardingPage() {
   const handleNext = async () => {
     if (step < TOTAL_STEPS) { setStep((s) => s + 1); return; }
     setFinishing(true);
-    let name = "";
     try {
       const { data } = await createClient().auth.getUser();
-      name = data.user?.user_metadata?.full_name ?? data.user?.email ?? "";
+      if (data.user) {
+        // بيانات حقيقية على الحساب (profiles.interests/goal/grade_or_education_stage)
+        // — مش localStorage، فبتفضل موجودة عبر أي جهاز أو متصفح
+        await saveOnboardingData(stage, interests, goal);
+      }
     } catch {
-      /* لو حصل خطأ في القراءة، نكمل من غير اسم — ده تفصيل تجميلي بس */
+      /* لو حصل خطأ، نكمل التنقل عادي — المستخدم يقدر يعدّل من البروفايل تاني */
     }
-    saveOnboarding({ name, stage, interests, goal, completedAt: new Date().toISOString() });
     setTimeout(() => router.push("/dashboard"), 2200);
   };
 

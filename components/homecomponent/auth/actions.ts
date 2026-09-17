@@ -38,10 +38,12 @@ export async function signUpWithEmail(
   const name = String(formData.get('name') ?? '').trim();
   const email = String(formData.get('email') ?? '').trim();
   const password = String(formData.get('password') ?? '');
+  const termsAccepted = formData.get('termsAccepted') === 'on';
 
   if (name.length < 2) return { error: 'اكتب اسمك بالكامل.' };
   if (!/^\S+@\S+\.\S+$/.test(email)) return { error: 'اكتب بريد إلكتروني صحيح.' };
   if (password.length < 6) return { error: 'كلمة السر لازم تكون 6 حروف/أرقام على الأقل.' };
+  if (!termsAccepted) return { error: 'لازم توافق على سياسة الخصوصية وشروط الاستخدام عشان تكمل.' };
 
   const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
@@ -63,9 +65,18 @@ export async function signUpWithEmail(
     return { error: 'حصل خطأ، جرّب تاني بعد شوية.' };
   }
 
-  // لو الأكونت محتاج تأكيد إيميل، Supabase مش بيرجّع سيشن فعلية دلوقتي
+  // لو الأكونت محتاج تأكيد إيميل، Supabase مش بيرجّع سيشن فعلية دلوقتي —
+  // مفيش auth.uid() نقدر نسجّل بيه الموافقة على السياسات دلوقتي
   if (!data.session) {
     return { error: null, needsConfirmation: true };
+  }
+
+  // دليل حقيقي إن المستخدم وافق على السياسات وقت التسجيل، مش بس checkbox فاضي
+  if (data.user) {
+    await supabase.from('policy_acceptances').insert([
+      { user_id: data.user.id, policy_slug: 'terms-of-use', policy_version: 1 },
+      { user_id: data.user.id, policy_slug: 'privacy-policy', policy_version: 1 },
+    ]);
   }
 
   redirect('/onboarding');

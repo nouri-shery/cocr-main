@@ -47,6 +47,12 @@ export default function RegisterPage() {
           <p className="mb-6 text-center text-[.88rem] text-muted-foreground">خطوة واحدة بسيطة، وبعدها نتعرف عليك أكتر.</p>
 
           <GoogleLoginButton />
+          <p className="mt-2.5 text-center text-[.76rem] text-muted-foreground">
+            بالمتابعة، إنت موافق على{" "}
+            <Link href="/policies/terms-of-use" className="font-bold text-primary hover:underline">شروط الاستخدام</Link>
+            {" "}و{" "}
+            <Link href="/policies/privacy-policy" className="font-bold text-primary hover:underline">سياسة الخصوصية</Link>.
+          </p>
 
           <div className="my-5 flex items-center gap-3 text-[.78rem] text-slate-400">
             <span className="h-px flex-1 bg-border" /> أو <span className="h-px flex-1 bg-border" />
@@ -80,6 +86,16 @@ export default function RegisterPage() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+            </label>
+
+            <label className="flex items-start gap-2.5 text-[.82rem] text-slate-600">
+              <input name="termsAccepted" type="checkbox" required className="mt-0.5" />
+              <span>
+                أوافق على{" "}
+                <Link href="/policies/terms-of-use" className="font-bold text-primary hover:underline">شروط الاستخدام</Link>
+                {" "}و{" "}
+                <Link href="/policies/privacy-policy" className="font-bold text-primary hover:underline">سياسة الخصوصية</Link>.
+              </span>
             </label>
 
             {state.error && <p className="text-[.82rem] font-semibold text-destructive">{state.error}</p>}

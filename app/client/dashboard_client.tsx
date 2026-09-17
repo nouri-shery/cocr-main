@@ -2,14 +2,15 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Lock, UserCircle, CheckCircle2, Circle, ArrowLeft, Star } from "lucide-react";
+import { UserCircle, ArrowLeft } from "lucide-react";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import { JourneyCompact, JourneyFull, type JourneySignals } from "./journey_client";
 import type { OpportunityListing, Course, Mentor } from "../types/types";
 import type { Project, RecentFeedback } from "../actions/projects_actions";
 import type { LessonSummary } from "../actions/lessons_actions";
-import type { NextMove, JourneyMilestone } from "../server/dashboardserver";
+import type { NextMove } from "../server/dashboardserver";
 
 export interface StartedCourseProgress {
   course: Course;
@@ -25,23 +26,15 @@ const ACCENT: Record<string, { bg: string; fg: string }> = {
   ink: { bg: "#E9E7E2", fg: "#3E403F" },
 };
 
-/** بادچات الإنجازات — الشكل موجود، البيانات لسه Placeholder لحد ما يبقى فيه تتبّع حقيقي */
-const ACHIEVEMENT_SLOTS = [
-  { label: "أول كورس", icon: "build" as const },
-  { label: "أول مشروع", icon: "hammer" as const },
-  { label: "أول فرصة", icon: "target" as const },
-  { label: "مساهمة", icon: "heart" as const },
-];
-
 export function DashboardClient({
-  opportunities, mentors, startedCourses, currentLearning, nextMoves, journey, projects, recentFeedback,
+  opportunities, mentors, startedCourses, currentLearning, nextMoves, journeySignals, projects, recentFeedback,
 }: {
   opportunities: OpportunityListing[];
   mentors: Mentor[];
   startedCourses: StartedCourseProgress[];
   currentLearning: StartedCourseProgress | null;
   nextMoves: NextMove[];
-  journey: JourneyMilestone[];
+  journeySignals: JourneySignals;
   projects: Project[];
   recentFeedback: RecentFeedback[];
 }) {
@@ -53,13 +46,12 @@ export function DashboardClient({
 
   return (
     <div className="flex flex-col gap-10">
-      {/* 1. Current Learning — أهم section في الصفحة */}
-      <CurrentLearningHero learning={currentLearning} />
-
-      {/* 2. خطوتك الجاية — actions حقيقية بتتغيّر حسب حالة الطالب */}
-      {nextMoves.length > 0 && (
-        <section>
-          <h2 className="mb-4 text-[1.2rem] font-extrabold">خطوتك الجاية</h2>
+      {/* 1. مين انت + فين رحلتك + خطوتك الجاية — بلوك واحد فوق بدل sections
+          منفصلة بنفس الوزن، عشان أول حاجة تشوفها تبقى واضحة ومركّزة */}
+      <section className="flex flex-col gap-4">
+        <JourneyCompact signals={journeySignals} />
+        <CurrentLearningHero learning={currentLearning} />
+        {nextMoves.length > 0 && (
           <div className="flex flex-wrap gap-3">
             {nextMoves.map((m) => (
               <Link
@@ -71,10 +63,10 @@ export function DashboardClient({
               </Link>
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
-      {/* 3. استمر في التعلم — باقي الكورسات المبدوءة */}
+      {/* 2. استمر في التعلم — باقي الكورسات المبدوءة */}
       {otherStartedCourses.length > 0 && (
         <section>
           <h2 className="mb-4 text-[1.2rem] font-extrabold">استمر في التعلم</h2>
@@ -174,19 +166,13 @@ export function DashboardClient({
         </section>
       )}
 
-      {/* 6. رحلتك في COCR — milestones محسوبة من بيانات حقيقية، مش XP/ranking */}
+      {/* 6. رحلتك في COCR — نفس مكوّن الرحلة اللي في البروفايل، بيوصل لحد
+          "مينتور" فعليًا، مش بيقف عند "حصلت على Feedback" */}
       <section>
         <h2 className="mb-4 text-[1.2rem] font-extrabold">رحلتك في COCR</h2>
-        <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border bg-white">
-          {journey.map((m) => (
-            <li key={m.label} className="flex items-center gap-3 px-5 py-3.5">
-              {m.done ? <CheckCircle2 className="h-5 w-5 text-green" /> : <Circle className="h-5 w-5 text-slate-300" />}
-              <span className={m.done ? "text-[.92rem] font-bold" : "text-[.92rem] font-bold text-muted-foreground"}>
-                {m.label}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="rounded-2xl border border-border bg-white p-5">
+          <JourneyFull signals={journeySignals} />
+        </div>
       </section>
 
       {/* 7. فرص ممكن تهمك — محتوى منسّق حقيقي، لكن مش مُدّعى إنه personalized */}
@@ -213,28 +199,6 @@ export function DashboardClient({
         <Link href="/opportunities" className="mt-4 inline-block text-[.86rem] font-bold text-primary">
           شوف كل الفرص ←
         </Link>
-      </section>
-
-      {/* 8. إنجازاتك — قريبًا، من غير أي رقم مُلفَّق */}
-      <section>
-        <div className="mb-4 flex items-center gap-2">
-          <h2 className="text-[1.2rem] font-extrabold">إنجازاتك</h2>
-          <span className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-[.72rem] font-bold text-muted-foreground">
-            <Lock className="h-3 w-3" /> قريبًا
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {ACHIEVEMENT_SLOTS.map((a) => (
-            <div key={a.label} className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-white px-3 py-5 text-center opacity-60">
-              <Icon3D name={a.icon} className="h-9 w-9" />
-              <span className="text-[.78rem] font-bold text-muted-foreground">{a.label}</span>
-            </div>
-          ))}
-        </div>
-        <p className="mt-3 text-[.78rem] text-slate-400">
-          <Star className="me-1 inline h-3 w-3" />
-          الإنجازات دي هتشتغل بمجرد ما يبقى فيه تتبّع حقيقي لتقدّمك — مش أرقام مُلفَّقة.
-        </p>
       </section>
 
       {/* روابط سريعة ثانوية — مش أقسام رئيسية في الصفحة */}

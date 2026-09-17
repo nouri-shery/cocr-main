@@ -3,32 +3,32 @@ import { DashboardClient } from "../client/dashboard_client";
 import { getCourses, getMentors } from "../actions/landing_page_actions";
 import { getOpportunities } from "../actions/opportunities_actions";
 import { getMyEnrollments } from "../actions/profile_actions";
-import { getMyProjects, getMyRecentFeedback } from "../actions/projects_actions";
+import { getMyProjects, getMyRecentFeedback, getMyGivenFeedbackCount } from "../actions/projects_actions";
 import { getMyProgressForCourses, getNextLessonForCourse } from "../actions/lessons_actions";
+import { getMyMentorApplication } from "../actions/mentor_actions";
+import type { JourneySignals } from "../client/journey_client";
 import { SiteFooter } from "./landingserver";
 import { getCurrentUser } from "@/lib/supabase/get-user";
+import { AppPageHeader } from "@/components/homecomponent/app-page-header";
 
 export interface NextMove {
   label: string;
   href: string;
 }
 
-export interface JourneyMilestone {
-  label: string;
-  done: boolean;
-}
-
 export async function DashboardPageContent() {
   const user = await getCurrentUser().catch(() => null);
   if (!user) redirect("/login?next=/dashboard");
 
-  const [opportunities, courses, mentors, enrollments, projects, recentFeedback] = await Promise.all([
+  const [opportunities, courses, mentors, enrollments, projects, recentFeedback, givenFeedbackCount, mentorApplication] = await Promise.all([
     getOpportunities(),
     getCourses(),
     getMentors(),
     getMyEnrollments(),
     getMyProjects(),
     getMyRecentFeedback(3),
+    getMyGivenFeedbackCount(),
+    getMyMentorApplication(),
   ]);
 
   const displayName = (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "";
@@ -74,31 +74,21 @@ export async function DashboardPageContent() {
     nextMoves.push(draft ? { label: "كمّل مشروعك", href: `/projects/${draft.id}` } : { label: "افتح مشاريعك", href: "/projects" });
   }
 
-  // Your COCR Journey — milestones محسوبة من بيانات حقيقية، مش XP/ranking
-  const totalCompletedLessons = Object.values(progressByCourse).reduce((sum, p) => sum + p.completed, 0);
-  const journey: JourneyMilestone[] = [
-    { label: "بدأت أول كورس", done: enrollments.length > 0 },
-    { label: "خلصت أول درس", done: totalCompletedLessons > 0 },
-    { label: "بنيت أول مشروع", done: projects.length > 0 },
-    { label: "حصلت على Feedback", done: recentFeedback.length > 0 },
-  ];
+  // رحلتك في COCR — نفس المفهوم المستخدم في البروفايل (journey_client)،
+  // إشارات حقيقية بس، مفيش XP ولا ترتيب مُلفَّق
+  const journeySignals: JourneySignals = {
+    hasEnrollment: enrollments.length > 0,
+    hasPublishedProject: projects.some((p) => p.status === "published"),
+    hasGivenFeedback: givenFeedbackCount > 0,
+    isApprovedMentor: mentorApplication?.status === "approved",
+  };
 
   return (
     <>
     <main className="relative overflow-hidden bg-cream pb-[100px] pt-[52px]">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] mx-auto max-w-[1160px] px-7">
-        <div className="mb-10 max-w-[38em]">
-          <span className="mb-3.5 block text-[.75rem] font-extrabold tracking-[.18em] text-gold-600">
-            لوحة التحكم
-          </span>
-          <h1 className="mb-4 text-[clamp(1.8rem,3.6vw,2.6rem)] font-extrabold leading-tight tracking-tight">
-            أهلًا يا {firstName} 👋
-          </h1>
-          <p className="text-[1.05rem] leading-[1.9] text-muted-foreground">
-            دي رحلتك في COCR — إيه اللي عملته وإيه الخطوة الجاية.
-          </p>
-        </div>
+        <AppPageHeader title={`أهلًا يا ${firstName} 👋`} context="دي رحلتك في COCR — إيه اللي عملته وإيه الخطوة الجاية." />
 
         <DashboardClient
           opportunities={opportunities}
@@ -106,7 +96,7 @@ export async function DashboardPageContent() {
           startedCourses={startedCoursesWithProgress}
           currentLearning={currentLearning}
           nextMoves={nextMoves}
-          journey={journey}
+          journeySignals={journeySignals}
           projects={projects}
           recentFeedback={recentFeedback}
         />

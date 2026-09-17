@@ -2,22 +2,34 @@ import { redirect } from "next/navigation";
 import { ProfileClient } from "../client/profile_client";
 import { SiteFooter } from "./landingserver";
 import { getCurrentUser } from "@/lib/supabase/get-user";
+import { AppPageHeader } from "@/components/homecomponent/app-page-header";
 import { getCourses, getMentors } from "../actions/landing_page_actions";
 import { getOpportunities } from "../actions/opportunities_actions";
 import { getMyProfile, getMyEnrollments } from "../actions/profile_actions";
-import { getMyProjects } from "../actions/projects_actions";
+import { getMyProjects, getMyGivenFeedback } from "../actions/projects_actions";
+import { getMyMentorApplication } from "../actions/mentor_actions";
+import { getMyProgressForCourses } from "../actions/lessons_actions";
+import { getMySavedItemIds } from "../actions/saved_actions";
+import type { JourneySignals } from "../client/journey_client";
+import type { ActivityEvent } from "../client/profile_client";
 
 export async function ProfilePageContent() {
   const user = await getCurrentUser().catch(() => null);
   if (!user) redirect("/login?next=/profile");
 
-  const [courses, mentors, opportunities, profile, enrollments, projects] = await Promise.all([
+  const [
+    courses, mentors, opportunities, profile, enrollments, projects,
+    mentorApplication, givenFeedback, savedOpportunityIds,
+  ] = await Promise.all([
     getCourses(),
     getMentors(),
     getOpportunities(),
     getMyProfile(),
     getMyEnrollments(),
     getMyProjects(),
+    getMyMentorApplication(),
+    getMyGivenFeedback(5),
+    getMySavedItemIds("opportunity"),
   ]);
 
   const name = profile?.display_name || (user.user_metadata?.full_name as string | undefined) || user.email || "طالب COCR";
@@ -27,30 +39,63 @@ export async function ProfilePageContent() {
     .map((e) => courses.find((c) => c.id === e.course_id))
     .filter((c): c is NonNullable<typeof c> => !!c);
   const mentorById = Object.fromEntries(mentors.map((m) => [m.id, m]));
+  const progressByCourse = startedCourses.length > 0
+    ? await getMyProgressForCourses(startedCourses.map((c) => c.id))
+    : {};
+  const savedOpportunities = opportunities.filter((o) => savedOpportunityIds.includes(o.id));
+
+  const isApprovedMentor = mentorApplication?.status === "approved";
+  const journeySignals: JourneySignals = {
+    hasEnrollment: enrollments.length > 0,
+    hasPublishedProject: projects.some((p) => p.status === "published"),
+    hasGivenFeedback: givenFeedback.length > 0,
+    isApprovedMentor,
+  };
+
+  // نشاطك — أحداث حقيقية من نفس البيانات اللي جبناها فوق، مرتّبة بالتاريخ،
+  // مفيش جدول activity منفصل ولا حدث مُلفَّق
+  const activity: ActivityEvent[] = [
+    ...enrollments.map((e) => ({
+      date: e.started_at,
+      label: `بدأت كورس ${courses.find((c) => c.id === e.course_id)?.title ?? e.course_id}`,
+      href: `/courses/${e.course_id}`,
+    })),
+    ...projects.filter((p) => p.status === "published").map((p) => ({
+      date: p.updated_at,
+      label: `نشرت مشروع "${p.title}"`,
+      href: `/projects/${p.id}`,
+    })),
+    ...givenFeedback.map((f) => ({
+      date: f.created_at,
+      label: `سبت ملاحظة على "${f.project.title}"`,
+      href: `/projects/${f.project.id}`,
+    })),
+  ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
 
   return (
     <>
     <main className="relative overflow-hidden bg-cream pb-[100px] pt-[52px]">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] mx-auto max-w-[1160px] px-7">
-        <div className="mb-10 max-w-[38em]">
-          <span className="mb-3.5 block text-[.75rem] font-extrabold tracking-[.18em] text-gold-600">
-            الملف الشخصي
-          </span>
-          <h1 className="mb-4 text-[clamp(1.8rem,3.6vw,2.6rem)] font-extrabold leading-tight tracking-tight">
-            بياناتك
-          </h1>
-        </div>
+        <AppPageHeader title="بياناتك" context="الملف الشخصي — رحلتك وشغلك ومساهماتك في COCR." />
 
         <ProfileClient
           name={name}
           email={user.email ?? ""}
           bio={bio}
           skills={skills}
+          stage={profile?.grade_or_education_stage ?? null}
+          interests={profile?.interests ?? []}
+          goal={profile?.goal ?? null}
           startedCourses={startedCourses}
+          progressByCourse={progressByCourse}
           mentorById={mentorById}
-          opportunities={opportunities}
           projects={projects}
+          givenFeedback={givenFeedback}
+          savedOpportunities={savedOpportunities}
+          journeySignals={journeySignals}
+          activity={activity}
+          isApprovedMentor={isApprovedMentor}
         />
       </div>
     </main>

@@ -1,224 +1,98 @@
 "use server";
 
-import { OpportunityCategory, OpportunityListing } from "../types/types";
+import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+import type { OpportunityCategory, OpportunityListing, Accent, IconName, OpportunityFormat } from "../types/types";
 import { CATEGORY_LABELS } from "../lib/opportunity-categories";
 
 /**
- * Seed data — فرص حقيقية اتجابت من بحث خارجي (مش مُختلَقة)، لكنها بيانات
- * تجريبية للـ MVP مش قاعدة بيانات نهائية. لازم تتراجع الديدلاينز فعليًا
- * قبل أي إطلاق حقيقي لأن مواعيد المسابقات بتتغير كل سنة.
+ * كتالوج الفرص — DB-backed فعليًا من public.opportunities (جدول حقيقي
+ * كان موجود من قبل، اتوسّع بـ migration 0010 عشان يغطّي كل حقول الـ UI).
+ * الـ id بقى uuid حقيقي بدل slug نصّي — لينكات الفرص القديمة (زي
+ * /opportunities/uwc-ibdp-scholarship) مش هتشتغل بعد الترحيل، تريد-أوف
+ * واعي اتوثّق في الـ migration نفسها.
  */
-const OPPORTUNITIES: OpportunityListing[] = [
-  {
-    id: "uwc-ibdp-scholarship",
-    title: "منحة دبلومة البكالوريا الدولية (IB) من United World Colleges",
-    organization: "United World Colleges (UWC)",
-    category: "grant",
-    icon: "compass",
-    accent: "gold",
-    ageNote: "بيختلف حسب لجنة UWC ومسار التقديم — في مصر عادة مواليد 2008–2010 تقريبًا",
-    location: "عالمي — تقديم عن طريق اللجنة الوطنية في مصر (UWC Egypt)",
-    format: "offline",
-    free: false,
-    financialAid: true,
-    duration: "سنتين — برنامج IB Diploma سكني كامل",
-    deadline: null,
-    deadlineNote: "بيختلف حسب الدولة — راجع UWC Egypt",
-    description: "ادرس في إحدى مدارس United World Colleges واحصل على دبلومة IB الدولية وانت عايش ومتعلم مع طلاب من كل العالم — دعم مالي جزئي أو كامل متاح عن طريق اللجنة الوطنية حسب احتياج الطالب.",
-    eligibility: [
-      "مواطن مصري أو مقيم في مصر",
-      "استيفاء شرط السن المعلن من UWC Egypt",
-      "إنهاء الصف الثالث الإعدادي أو ما يعادله، ومش في آخر سنة دراسية",
-      "سجل أكاديمي قوي، واهتمام بالتفاهم بين الثقافات والاستدامة",
-      "أكتر من 80% من الطلاب المقبولين عن طريق اللجان الوطنية بياخدوا دعم مالي جزئي أو كامل",
-    ],
-    tags: ["منحة دراسية", "IB", "دولي", "قيادة", "دعم مالي", "مصر"],
-    officialLink: "https://eg.uwc.org/eligibility-criteria/?lang=ar",
-    featured: true,
-    verified: true,
-  },
-  {
-    id: "breakthrough-junior-challenge",
-    title: "Breakthrough Junior Challenge 2026",
-    organization: "Breakthrough Prize Foundation",
-    category: "competition",
-    icon: "medal",
-    accent: "gold",
-    ageMin: 13,
-    ageMax: 18,
-    location: "عالمي",
-    format: "online",
-    free: true,
-    deadline: "2026-09-15",
-    description: "اعمل فيديو قصير بتشرح فيه مفهوم علمي معقّد بطريقة مبسّطة وممتعة — أفضل فيديو ياخد منحة دراسية كبيرة.",
-    eligibility: ["السن من 13 لـ 18 سنة", "فيديو أصلي من إنتاجك", "أي مجال علمي (فيزياء، أحياء، رياضيات...)"],
-    tags: ["علوم", "فيديو", "منحة دراسية"],
-    officialLink: "https://breakthroughjuniorchallenge.org",
-    featured: true,
-    verified: false,
-  },
-  {
-    id: "wharton-global-hs-investment",
-    title: "Wharton Global High School Investment Competition",
-    organization: "Wharton School — University of Pennsylvania",
-    category: "competition",
-    icon: "target",
-    accent: "blue",
-    ageMin: 14,
-    ageMax: 18,
-    location: "عالمي",
-    format: "online",
-    free: true,
-    deadline: "2026-09-11",
-    description: "تكوّن فريق وتدير محفظة استثمار وهمية لمدة عشر أسابيع — تتعلم أساسيات الاستثمار والتحليل المالي عمليًا.",
-    eligibility: ["طالب ثانوي (تقريبًا 14-18 سنة)", "العمل في فريق من 4-5 أفراد", "مشرف/معلّم يوافق على التسجيل"],
-    tags: ["استثمار", "فريق", "مالية"],
-    officialLink: "https://globalyouth.wharton.upenn.edu/investment-competition/",
-    verified: false,
-  },
-  {
-    id: "intl-youth-environmental-challenge",
-    title: "International Youth Environmental Challenge 2026",
-    organization: "IYEC",
-    category: "competition",
-    icon: "compass",
-    accent: "green",
-    ageMin: 13,
-    ageMax: 18,
-    location: "عالمي",
-    format: "online",
-    free: true,
-    deadline: "2026-10-15",
-    description: "قدّم حل مبتكر لمشكلة بيئية حقيقية في مجتمعك — بحث، مشروع، أو حملة توعية.",
-    eligibility: ["السن من 13 لـ 18 سنة", "مشروع بيئي أصلي (فردي أو جماعي)"],
-    tags: ["بيئة", "استدامة", "مشروع"],
-    officialLink: "https://www.iyec.org",
-    verified: false,
-  },
-  {
-    id: "conrad-challenge",
-    title: "Conrad Challenge 2026–27",
-    organization: "Conrad Foundation",
-    category: "stem",
-    icon: "rocket",
-    accent: "blue",
-    ageMin: 13,
-    ageMax: 18,
-    location: "عالمي",
-    format: "hybrid",
-    free: true,
-    deadline: "2026-10-29",
-    description: "مسابقة ابتكار STEM بتحويل فكرتك لمنتج أو خدمة فعلية — فريق، Pitch، وخبراء بيراجعوا شغلك.",
-    eligibility: ["السن من 13 لـ 18 سنة", "فريق من 2-5 أفراد", "فكرة ابتكارية في مجال STEM"],
-    tags: ["STEM", "ابتكار", "ريادة أعمال"],
-    officialLink: "https://www.conradchallenge.org",
-    featured: true,
-    verified: false,
-  },
-  {
-    id: "journal-emerging-investigators",
-    title: "Journal of Emerging Investigators",
-    organization: "JEI",
-    category: "stem",
-    icon: "bulb",
-    accent: "green",
-    ageMin: 13,
-    ageMax: 18,
-    location: "عالمي",
-    format: "online",
-    free: true,
-    deadline: null,
-    description: "انشر بحثك العلمي الأصلي في مجلة أكاديمية بتراجع أبحاث طلاب المرحلة المتوسطة والثانوية.",
-    eligibility: ["طالب في المرحلة المتوسطة أو الثانوية", "بحث علمي أصلي بإشراف معلّم أو مرشد"],
-    tags: ["بحث", "نشر علمي", "مستمر"],
-    officialLink: "https://emerginginvestigators.org",
-    verified: false,
-  },
-  {
-    id: "immerse-education-essay",
-    title: "Immerse Education Essay Competition",
-    organization: "Immerse Education",
-    category: "writing",
-    icon: "chat",
-    accent: "gold",
-    ageMin: 13,
-    ageMax: 18,
-    location: "عالمي",
-    format: "online",
-    free: true,
-    deadline: "2026-10-25",
-    description: "اكتب مقال في مجال دراسي بتحبه — أفضل المقالات بتاخد منح جزئية لبرامج Immerse الصيفية.",
-    eligibility: ["السن من 13 لـ 18 سنة", "مقال أصلي مش أطول من 500 كلمة (حسب المجال)"],
-    tags: ["كتابة", "منحة جزئية", "أكاديمي"],
-    officialLink: "https://www.immerse.education/essay-competition/",
-    verified: false,
-  },
-  {
-    id: "ted-summer-public-speaking",
-    title: "TED Summer School Public Speaking Challenge",
-    organization: "TED-Ed",
-    category: "speaking",
-    icon: "mic",
-    accent: "ink",
-    ageMin: 14,
-    ageMax: 18,
-    location: "عالمي",
-    format: "online",
-    free: true,
-    deadline: null,
-    description: "سجّل فيديو قصير (فكرة تستاهل الانتشار) وطوّر مهارات الإلقاء والتأثير بتاعتك.",
-    eligibility: ["السن من 14 لـ 18 سنة", "فيديو 3-5 دقايق بفكرة أصلية"],
-    tags: ["إلقاء", "فيديو", "دورة قادمة"],
-    officialLink: "https://ed.ted.com",
-    verified: false,
-  },
-  {
-    id: "veya-international-prize",
-    title: "Veya International Prize 2026–27",
-    organization: "Veya",
-    category: "leadership",
-    icon: "compass",
-    accent: "ink",
-    ageMin: 12,
-    ageMax: 19,
-    location: "عالمي",
-    format: "online",
-    free: true,
-    deadline: null,
-    description: "مسابقة عالمية بتكرّم مبادرات الشباب في القيادة والتأثير المجتمعي.",
-    eligibility: ["السن من 12 لـ 19 سنة", "مبادرة أو مشروع قيادي حقيقي"],
-    tags: ["قيادة", "مجتمع", "عالمي"],
-    officialLink: "https://veya.org",
-    verified: false,
-  },
-];
 
-function delay<T>(value: T, ms = 220): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
+interface OpportunityRow {
+  id: string;
+  title: string;
+  provider: string;
+  category: string | null;
+  icon: string | null;
+  accent: string | null;
+  min_age: number | null;
+  max_age: number | null;
+  age_note: string | null;
+  location: string;
+  delivery_mode: string | null;
+  funding_label: string;
+  duration: string | null;
+  deadline: string | null;
+  deadline_note: string | null;
+  summary: string;
+  eligibility: string[];
+  tags: string[];
+  official_source_url: string;
+  featured: boolean;
+  verified: boolean;
+}
+
+const OPPORTUNITY_COLUMNS =
+  "id, title, provider, category, icon, accent, min_age, max_age, age_note, location, delivery_mode, funding_label, duration, deadline, deadline_note, summary, eligibility, tags, official_source_url, featured, verified";
+
+function mapOpportunityRow(row: OpportunityRow): OpportunityListing {
+  return {
+    id: row.id,
+    title: row.title,
+    organization: row.provider,
+    category: (row.category ?? "grant") as Exclude<OpportunityCategory, "all">,
+    icon: (row.icon ?? "target") as IconName,
+    accent: (row.accent ?? "blue") as Accent,
+    ageMin: row.min_age ?? undefined,
+    ageMax: row.max_age ?? undefined,
+    ageNote: row.age_note ?? undefined,
+    location: row.location,
+    format: (row.delivery_mode ?? "online") as OpportunityFormat,
+    free: row.funding_label === "free",
+    financialAid: row.funding_label === "fully_funded" || row.funding_label === "partially_funded" ? true : undefined,
+    duration: row.duration ?? undefined,
+    deadline: row.deadline ? row.deadline.slice(0, 10) : null,
+    deadlineNote: row.deadline_note ?? undefined,
+    description: row.summary,
+    eligibility: row.eligibility,
+    tags: row.tags,
+    officialLink: row.official_source_url,
+    featured: row.featured,
+    verified: row.verified,
+  };
 }
 
 export async function getOpportunities(category: OpportunityCategory = "all"): Promise<OpportunityListing[]> {
-  const sorted = [...OPPORTUNITIES].sort((a, b) => {
-    if (a.deadline === null && b.deadline === null) return 0;
-    if (a.deadline === null) return 1;
-    if (b.deadline === null) return -1;
-    return a.deadline.localeCompare(b.deadline);
-  });
-  const filtered = category === "all" ? sorted : sorted.filter((o) => o.category === category);
-  return delay(filtered);
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  let query = supabase.from("opportunities").select(OPPORTUNITY_COLUMNS).order("deadline", { ascending: true, nullsFirst: false });
+  if (category !== "all") query = query.eq("category", category);
+  const { data } = await query;
+  return ((data as OpportunityRow[] | null) ?? []).map(mapOpportunityRow);
 }
 
 export async function getOpportunityCategories(): Promise<{ id: OpportunityCategory; label: string }[]> {
-  return delay([
+  return [
     { id: "all", label: "الكل" },
     ...(Object.keys(CATEGORY_LABELS) as Exclude<OpportunityCategory, "all">[]).map((id) => ({
       id,
       label: CATEGORY_LABELS[id],
     })),
-  ]);
+  ];
 }
 
 export async function getOpportunityById(id: string): Promise<OpportunityListing | null> {
-  return delay(OPPORTUNITIES.find((o) => o.id === id) ?? null);
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const { data } = await supabase
+    .from("opportunities")
+    .select(OPPORTUNITY_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+  return data ? mapOpportunityRow(data as OpportunityRow) : null;
 }
-

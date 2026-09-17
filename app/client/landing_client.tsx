@@ -9,7 +9,7 @@ import { twMerge } from "tailwind-merge";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { getCourses } from "../actions/landing_page_actions";
@@ -98,6 +98,17 @@ const NAV_LINKS = [
   { href: "/about", label: "قصتنا" },
 ];
 
+/** ناف بار المنتج بعد تسجيل الدخول — مختلف عن ناف بار التسويق (فوق)، عشان
+ * تحس إنك دلوقتي جوّا المنتج مش لسه بتتصفح صفحة تعريفية. نفس الهوية
+ * البصرية (نفس الـ pill، نفس الألوان) بس روابط منتج مش سكاشن تسويقية */
+const AUTH_NAV_LINKS = [
+  { href: "/dashboard", label: "الرئيسية" },
+  { href: "/courses", label: "اتعلّم" },
+  { href: "/projects", label: "ابنِ" },
+  { href: "/opportunities", label: "اكتشف" },
+  { href: "/profile", label: "بروفايلي" },
+];
+
 export function Navbar({
   isAuthenticated = false, displayName = null,
 }: { isAuthenticated?: boolean; displayName?: string | null } = {}) {
@@ -105,9 +116,10 @@ export function Navbar({
   const pathname = usePathname();
   const isHome = pathname === "/";
   const [active, setActive] = React.useState("#top");
+  const links = isAuthenticated ? AUTH_NAV_LINKS : NAV_LINKS;
 
   React.useEffect(() => {
-    if (!isHome) return;
+    if (!isHome || isAuthenticated) return;
     const onScroll = () => {
       const y = window.scrollY + 140;
       let current = NAV_LINKS[0].href;
@@ -121,7 +133,7 @@ export function Navbar({
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [isHome]);
+  }, [isHome, isAuthenticated]);
 
   const isActive = (href: string) => (href.startsWith("#") ? isHome && active === href : pathname.startsWith(href));
   // روابط الـ hash (زي #courses) لازم تودّي للهوم بيج + الـ hash — مش تتلزّق على مسار الصفحة الحالية
@@ -139,8 +151,8 @@ export function Navbar({
             COCR
           </Link>
 
-          <nav aria-label="أقسام الصفحة" className="mx-auto hidden items-center gap-0.5 rounded-full bg-border/50 p-[5px] lg:flex">
-            {NAV_LINKS.map((l) => (
+          <nav aria-label={isAuthenticated ? "أقسام المنصة" : "أقسام الصفحة"} className="mx-auto hidden items-center gap-0.5 rounded-full bg-border/50 p-[5px] lg:flex">
+            {links.map((l) => (
               <Link
                 key={l.href} href={hashHref(l.href)}
                 className={cn(
@@ -161,21 +173,18 @@ export function Navbar({
                 <Link href="/saved" className="text-[.9rem] font-semibold text-muted-foreground transition-colors hover:text-primary">
                   المفتكرة
                 </Link>
-                <Link href="/profile" className="text-[.9rem] font-semibold text-muted-foreground transition-colors hover:text-primary">
+                <Link href="/profile" className={cn(buttonVariants({ size: "sm" }))}>
                   {displayName ? `أهلًا يا ${displayName.split(" ")[0]}` : "بياناتك"}
                 </Link>
-                <Button size="sm" onClick={() => { window.location.href = "/dashboard"; }}>
-                  لوحة التحكم
-                </Button>
               </>
             ) : (
               <>
                 <Link href="/login" className="text-[.9rem] font-semibold text-muted-foreground transition-colors hover:text-primary">
                   تسجيل الدخول
                 </Link>
-                <Button size="sm" onClick={() => { window.location.href = "/register"; }}>
+                <Link href="/register" className={cn(buttonVariants({ size: "sm" }))}>
                   ابدأ رحلتك
-                </Button>
+                </Link>
               </>
             )}
           </div>
@@ -191,7 +200,7 @@ export function Navbar({
 
         {open && (
           <div id="mobile-nav" className="mt-3 flex flex-col gap-1 rounded-[22px] border border-border bg-cream p-3 shadow-[0_24px_50px_-26px_rgba(22,24,31,.6)] lg:hidden">
-            {NAV_LINKS.map((l) => (
+            {links.map((l) => (
               <Link key={l.href} href={hashHref(l.href)} onClick={() => setOpen(false)}
                 className="rounded-full px-4 py-3 text-center text-[.9rem] font-semibold text-muted-foreground hover:bg-white">
                 {l.label}
@@ -203,13 +212,9 @@ export function Navbar({
                   className="rounded-full px-4 py-3 text-center text-[.9rem] font-semibold text-muted-foreground hover:bg-white">
                   المفتكرة
                 </Link>
-                <Link href="/profile" onClick={() => setOpen(false)}
-                  className="rounded-full px-4 py-3 text-center text-[.9rem] font-semibold text-muted-foreground hover:bg-white">
+                <Link href="/profile" onClick={() => setOpen(false)} className={cn(buttonVariants(), "mt-1")}>
                   بياناتك
                 </Link>
-                <Button className="mt-1" onClick={() => { setOpen(false); window.location.href = "/dashboard"; }}>
-                  لوحة التحكم
-                </Button>
               </>
             ) : (
               <>
@@ -217,9 +222,9 @@ export function Navbar({
                   className="rounded-full px-4 py-3 text-center text-[.9rem] font-semibold text-muted-foreground hover:bg-white">
                   تسجيل الدخول
                 </Link>
-                <Button className="mt-1" onClick={() => { setOpen(false); window.location.href = "/register"; }}>
+                <Link href="/register" onClick={() => setOpen(false)} className={cn(buttonVariants(), "mt-1")}>
                   ابدأ رحلتك
-                </Button>
+                </Link>
               </>
             )}
           </div>
@@ -272,7 +277,7 @@ export function PassportVisual() {
           <div className="mb-[22px] mt-0.5 text-center text-[.8rem] font-semibold text-white/70">جواز النمو الطلابي</div>
 
           <div className="rounded-2xl bg-white p-5">
-            <PassportRow label="الاسم" value="ياسين أحمد" />
+            <PassportRow label="الاسم" value="طالب" />
             <PassportRow label="المستوى" value="Contributor — L3" latin />
 
             <div className="mt-5 grid grid-cols-4 gap-2.5">

@@ -16,7 +16,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { cn } from "@/lib/utils";
-import { getOnboarding, INTEREST_TO_COURSE_CATEGORY } from "../lib/onboarding";
+import { INTEREST_TO_COURSE_CATEGORY, type InterestId } from "../lib/onboarding";
 import { AuthPrompt } from "./auth-prompt";
 import { Reveal } from "./landing_client";
 import { startCourse } from "../actions/profile_actions";
@@ -67,14 +67,17 @@ function sessionsSummary(course: Course) {
 }
 
 interface CoursesExplorerProps {
-  popularCourses: Course[];
   allCourses: Course[];
   categories: { id: CourseCategory; label: string }[];
   mentors: Mentor[];
   isAuthenticated: boolean;
+  /** تقدّم حقيقي للكورسات اللي المستخدم مسجّل فيها بس — فاضي لو مش مسجّل دخول أو مفيش enrollments */
+  progressByCourse: Record<string, { completed: number; total: number }>;
+  /** اهتمامات حقيقية من profiles.interests — فاضية لو مش مسجّل دخول أو لسه معملش أونبوردينج */
+  myInterests: InterestId[];
 }
 
-export function CoursesExplorer({ popularCourses, allCourses, categories, mentors, isAuthenticated }: CoursesExplorerProps) {
+export function CoursesExplorer({ allCourses, categories, mentors, isAuthenticated, progressByCourse, myInterests }: CoursesExplorerProps) {
   const router = useRouter();
   const [category, setCategory] = React.useState<CourseCategory>("all");
   const [format, setFormat] = React.useState<CourseFormat | "all">("all");
@@ -82,40 +85,28 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [showSignupAlert, setShowSignupAlert] = React.useState(false);
   const [authPromptOpen, setAuthPromptOpen] = React.useState(false);
-  const [interestCategories, setInterestCategories] = React.useState<CourseCategory[] | null>(null);
+
+  const interestCategories = React.useMemo<CourseCategory[] | null>(() => {
+    if (myInterests.length === 0) return null;
+    return Array.from(new Set(myInterests.flatMap((i) => INTEREST_TO_COURSE_CATEGORY[i])));
+  }, [myInterests]);
 
   React.useEffect(() => {
-    if (isAuthenticated) return; // متسجّل فعليًا — مفيش لازمة نضايقه بتنبيه التسجيل
-    const onboarding = getOnboarding();
-    if (onboarding && onboarding.interests.length > 0) {
-      const cats = Array.from(new Set(onboarding.interests.flatMap((i) => INTEREST_TO_COURSE_CATEGORY[i])));
-      setInterestCategories(cats);
-      return;
-    }
+    if (isAuthenticated || interestCategories) return; // متسجّل فعليًا أو عنده اهتمامات — مفيش لازمة نضايقه بتنبيه التسجيل
     const t = setTimeout(() => setShowSignupAlert(true), 900);
     return () => clearTimeout(t);
-  }, [isAuthenticated]);
-
-  React.useEffect(() => {
-    if (!isAuthenticated) return;
-    const onboarding = getOnboarding();
-    if (onboarding && onboarding.interests.length > 0) {
-      setInterestCategories(Array.from(new Set(onboarding.interests.flatMap((i) => INTEREST_TO_COURSE_CATEGORY[i]))));
-    }
-  }, [isAuthenticated]);
-
-  const recommendedCourses = React.useMemo(() => {
-    if (!interestCategories || interestCategories.length === 0) return [];
-    return allCourses.filter((c) => interestCategories.includes(c.category)).slice(0, 3);
-  }, [allCourses, interestCategories]);
+  }, [isAuthenticated, interestCategories]);
 
   const mentorById = React.useMemo(
     () => Object.fromEntries(mentors.map((m) => [m.id, m])),
     [mentors],
   );
 
+  // فلترة، وبعدين ترتيب الكورسات القريبة من اهتمام الطالب الأول — بدل قسم
+  // منفصل مكرّر (الكتالوج فيه ٦ كورسات بس، أي تكرار بصري هيبان padding مش
+  // ترشيح حقيقي). نفس المنطق، عرض مختلف.
   const filtered = React.useMemo(() => {
-    return allCourses.filter((c) => {
+    const matches = allCourses.filter((c) => {
       const matchesCategory = category === "all" || c.category === category;
       const matchesFormat = format === "all" || c.format === format;
       const matchesQuery =
@@ -124,89 +115,62 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
         mentorById[c.mentorId]?.name.includes(query.trim());
       return matchesCategory && matchesFormat && matchesQuery;
     });
-  }, [allCourses, category, format, query, mentorById]);
+    if (!interestCategories || interestCategories.length === 0) return matches;
+    return [...matches].sort((a, b) => {
+      const aMatch = interestCategories.includes(a.category) ? 0 : 1;
+      const bMatch = interestCategories.includes(b.category) ? 0 : 1;
+      return aMatch - bMatch;
+    });
+  }, [allCourses, category, format, query, mentorById, interestCategories]);
 
   const activeCourse = allCourses.find((c) => c.id === activeId) ?? null;
 
   return (
     <div>
-      {recommendedCourses.length > 0 && (
-        <section className="mb-12">
-          <div className="mb-5 flex items-center gap-2">
-            <h2 className="text-[1.3rem] font-extrabold">ترشيحات مخصصة ليك</h2>
-            <span className="rounded-full bg-blue-tint px-3 py-1 text-[.72rem] font-bold text-primary">بناءً على اهتماماتك</span>
-          </div>
-          <div className="grid gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
-            {recommendedCourses.map((c, i) => (
-              <Reveal key={c.id} delay={i * 60} variant="pop" className="h-full">
-                <CourseCard course={c} mentor={mentorById[c.mentorId]} onExpand={() => setActiveId(c.id)} />
-              </Reveal>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* أشهر الكورسات */}
-      <section className="mb-12">
-        <h2 className="mb-5 text-[1.3rem] font-extrabold">أشهر الكورسات</h2>
-        <div className="grid gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
-          {popularCourses.map((c, i) => (
-            <Reveal key={c.id} delay={Math.min(i, 5) * 60} variant="pop" className="h-full">
-              <CourseCard course={c} mentor={mentorById[c.mentorId]} onExpand={() => setActiveId(c.id)} />
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
       <SignupPrompt show={showSignupAlert} onDismiss={() => setShowSignupAlert(false)} />
 
-      {/* كل الكورسات + فلاتر */}
-      <h2 className="mb-5 text-[1.3rem] font-extrabold">كل الكورسات</h2>
-
-      <div className="relative mb-6 max-w-sm">
-        <Search className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="دور على كورس أو مينتور"
-          className="h-11 rounded-full pe-9 ps-4"
-        />
-      </div>
-
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="text-[.8rem] font-semibold text-slate-500">التصنيف:</span>
-        {categories.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setCategory(c.id)}
-            className={cn(
-              "rounded-full border px-4 py-2 text-[.84rem] font-bold transition-all",
-              category === c.id
-                ? "border-primary bg-primary text-primary-foreground shadow-[0_6px_14px_-6px_rgba(30,69,196,.6)]"
-                : "border-border bg-white text-slate-600 hover:border-slate-400",
-            )}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mb-7 flex flex-wrap items-center gap-2 border-b border-dashed border-border pb-5">
-        <span className="text-[.8rem] font-semibold text-slate-500">الصيغة:</span>
-        {(["all", "live", "recorded", "hybrid"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFormat(f)}
-            className={cn(
-              "rounded-full px-3.5 py-1.5 text-[.8rem] font-semibold transition-colors",
-              format === f
-                ? "bg-foreground text-background"
-                : "border border-border text-slate-500 hover:border-slate-400",
-            )}
-          >
-            {f === "all" ? "الكل" : FORMAT_LABEL[f]}
-          </button>
-        ))}
+      {/* شريط أدوات مدمج — بحث + فلاتر في مساحة واحدة بدل ٣ أقسام منفصلة */}
+      <div className="mb-8 flex flex-col gap-3 rounded-2xl border border-border bg-white p-4">
+        <div className="relative">
+          <Search className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="دور على كورس أو مينتور"
+            className="h-10 rounded-xl pe-9 ps-4"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setCategory(c.id)}
+              className={cn(
+                "rounded-full border px-3.5 py-1.5 text-[.82rem] font-bold transition-all",
+                category === c.id
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-white text-slate-600 hover:border-slate-400",
+              )}
+            >
+              {c.label}
+            </button>
+          ))}
+          <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+          {(["all", "live", "recorded", "hybrid"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFormat(f)}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-[.8rem] font-semibold transition-colors",
+                format === f
+                  ? "bg-muted text-foreground"
+                  : "text-slate-500 hover:text-foreground",
+              )}
+            >
+              {f === "all" ? "كل الصيغ" : FORMAT_LABEL[f]}
+            </button>
+          ))}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -217,7 +181,13 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
         <div className="grid gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((c, i) => (
             <Reveal key={c.id} delay={Math.min(i, 5) * 60} variant="pop" className="h-full">
-              <CourseCard course={c} mentor={mentorById[c.mentorId]} onExpand={() => setActiveId(c.id)} />
+              <CourseCard
+                course={c}
+                mentor={mentorById[c.mentorId]}
+                onExpand={() => setActiveId(c.id)}
+                progress={progressByCourse[c.id]}
+                matchesInterest={!!interestCategories?.includes(c.category)}
+              />
             </Reveal>
           ))}
         </div>
@@ -249,11 +219,16 @@ export function CoursesExplorer({ popularCourses, allCourses, categories, mentor
 }
 
 function CourseCard({
-  course, mentor, onExpand,
-}: { course: Course; mentor?: Mentor; onExpand: () => void }) {
+  course, mentor, onExpand, progress, matchesInterest,
+}: {
+  course: Course; mentor?: Mentor; onExpand: () => void;
+  progress?: { completed: number; total: number };
+  matchesInterest?: boolean;
+}) {
   const a = ACCENT[course.accent];
   const FormatIcon = FORMAT_ICON[course.format];
   const sessions = sessionsSummary(course);
+  const isEnrolled = !!progress;
 
   return (
     <article
@@ -275,16 +250,25 @@ function CourseCard({
           }}
         />
         <Badge className="absolute start-3.5 top-3.5 bg-white shadow-sm" style={{ color: a.fg }}>{course.level}</Badge>
-        {course.free && (
+        {isEnrolled ? (
+          <span className="absolute end-3.5 top-3.5 flex items-center gap-1 rounded-full bg-white px-3 py-1 text-[.7rem] font-extrabold" style={{ color: a.fg }}>
+            <CheckCircle2 className="h-3 w-3" /> مسجّل
+          </span>
+        ) : course.free ? (
           <span className="absolute end-3.5 top-3.5 rounded-full px-3 py-1 text-[.7rem] font-extrabold text-white" style={{ background: a.fg }}>
             مجاني
           </span>
-        )}
+        ) : null}
         <Icon3D name={course.icon} className="relative z-10 h-14 w-14 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
       </div>
 
       <div className="flex flex-1 flex-col gap-2.5 p-[22px]">
-        <h3 className="text-[1.05rem] font-extrabold leading-relaxed group-hover:text-primary">{course.title}</h3>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-[1.05rem] font-extrabold leading-relaxed group-hover:text-primary">{course.title}</h3>
+          {matchesInterest && !isEnrolled && (
+            <span className="mt-0.5 shrink-0 rounded-full bg-blue-tint px-2 py-0.5 text-[.68rem] font-bold text-primary">قريب من اهتمامك</span>
+          )}
+        </div>
         <p className="flex-1 text-[.86rem] leading-relaxed text-muted-foreground">{course.description}</p>
 
         <div className="flex flex-wrap gap-3 text-[.78rem] font-semibold text-muted-foreground">
@@ -293,11 +277,21 @@ function CourseCard({
         </div>
         {sessions && <p className="text-[.76rem] font-semibold text-slate-400">{sessions}</p>}
 
-        <div className="flex items-center gap-2.5 border-t border-dashed border-border pt-3">
-          <StarRating value={course.rating} />
-          <b className="font-display text-[.9rem] font-extrabold">{course.rating}</b>
-          <small className="text-[.74rem] font-semibold text-slate-400">({course.reviews})</small>
-        </div>
+        {isEnrolled ? (
+          <div className="flex flex-col gap-1.5 border-t border-dashed border-border pt-3">
+            <p className="text-[.78rem] font-bold text-slate-500">
+              {progress!.total > 0
+                ? progress!.completed >= progress!.total ? "الكورس مكتمل 🎉" : `${progress!.completed} من ${progress!.total} دروس`
+                : "بدأت الكورس ✅"}
+            </p>
+            {progress!.total > 0 && <Progress value={Math.round((progress!.completed / progress!.total) * 100)} />}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 border-t border-dashed border-border pt-3 text-[.8rem] text-slate-400">
+            <StarRating value={course.rating} />
+            <span>{course.rating} ({course.reviews})</span>
+          </div>
+        )}
 
         {mentor && (
           <div className="flex items-center gap-2">

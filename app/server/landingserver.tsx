@@ -1,12 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Check, X, Info } from "lucide-react";
+import { ArrowLeft, Check, X, Info, Star } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CourseGrid, FaqAccordion, PassportVisual, JourneyEndVisual, GrowthLadder, Reveal } from "../client/landing_client";
 import { Accent } from "../types/types";
-import { getCourseCategories, getCourses, getFaqs, getGrowthLadder, getJourneyPhases, getMentors, getOpportunities, getPlatformSections, getProjects } from "../actions/landing_page_actions";
+import { getCourseCategories, getCourses, getFaqs, getGrowthLadder, getJourneyPhases, getMentors, getOpportunities, getPlatformSections } from "../actions/landing_page_actions";
+import { getPublishedProjects } from "../actions/projects_actions";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
-import { MENTOR_ILLUSTRATIONS } from "@/components/homecomponent/mentor-illustrations";
 import { cn } from "@/lib/utils";
 
 /* ================================================================== */
@@ -433,7 +433,7 @@ export async function PlatformSectionsBlock() {
           <Icon3D name={featured.icon} className="mb-4 h-16 w-16" />
           <h3 className="mb-2 text-2xl font-extrabold tracking-tight">{featured.title}</h3>
           <p className="text-muted-foreground">{featured.description}</p>
-          <Link href="/journeys" className="group mt-4 inline-flex items-center gap-2 text-[.94rem] font-bold text-primary">
+          <Link href="/courses" className="group mt-4 inline-flex items-center gap-2 text-[.94rem] font-bold text-primary">
             استكشف الرحلات <ArrowLeft className="h-[18px] w-[18px] transition-transform group-hover:-translate-x-1" />
           </Link>
         </div>
@@ -481,44 +481,49 @@ const MENTOR_CARD_OFFSET = ["", "sm:mt-8", "sm:mt-4"];
 
 export async function MentorsSection() {
   const allMentors = await getMentors();
-  // بس اللي ليهم بورتريه مرسوم — مش عايزين كارت فاضي من غير كاركتر جنب اللي ليهم رسمة
-  const mentors = allMentors.filter((m) => MENTOR_ILLUSTRATIONS[m.id]);
+  // بس اللي ليهم صورة حقيقية — مش عايزين كارت فاضي بحروف initials جنب اللي ليهم بورتريه
+  const mentors = allMentors.filter((m) => m.photo);
   return (
     <Section id="mentors">
-      <div className="grid gap-10 lg:grid-cols-[.9fr_1.1fr] lg:items-center lg:gap-16">
+      <div className="grid gap-10 lg:grid-cols-[.7fr_1.3fr] lg:items-center lg:gap-16">
         <SectionHead num="06" label="المينتورز" title="مش أساتذة — خرّيجين الرحلة اللي أنت فيها"
           lead="كل واحد فيهم خلّص نفس المسار وبقى بيراجع للي بعده." />
 
-        <div className="grid gap-6 sm:grid-cols-3">
-          {mentors.map((m, i) => (
-            <Reveal key={m.id} delay={i * 90} variant="pop" className={MENTOR_CARD_OFFSET[i] ?? ""}>
-              <article className="h-full overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_18px_38px_-20px_rgba(22,24,31,.32)]">
-                {m.photo ? (
-                  <Image src={m.photo} alt={m.name} width={400} height={300} className="aspect-[4/3] w-full object-cover" />
-                ) : MENTOR_ILLUSTRATIONS[m.id] ? (
-                  <div className="aspect-[4/3] w-full overflow-hidden">
-                    {(() => { const Illustration = MENTOR_ILLUSTRATIONS[m.id]; return <Illustration />; })()}
+        <div className="relative">
+          {/* زخرفة بهوية COCR حوالين الكروت — نجوم بيضا بتلف ببطء وتكبر وتوقف لفّها لما الطالب يمرّ عليها بالماوس */}
+          <Star aria-hidden className="absolute -top-7 right-[10%] hidden h-7 w-7 fill-white text-white drop-shadow-[0_2px_6px_rgba(22,24,31,.28)] transition-transform duration-300 ease-out motion-safe:animate-[spin_16s_linear_infinite] hover:scale-150 hover:[animation-play-state:paused] motion-reduce:animate-none sm:block" />
+          <Star aria-hidden className="absolute -top-4 left-[30%] hidden h-4 w-4 fill-white text-white drop-shadow-[0_2px_5px_rgba(22,24,31,.28)] transition-transform duration-300 ease-out motion-safe:animate-[spin_13s_linear_infinite] hover:scale-150 hover:[animation-play-state:paused] motion-reduce:animate-none sm:block" />
+          <Star aria-hidden className="absolute bottom-14 -left-3 hidden h-5 w-5 fill-white text-white drop-shadow-[0_2px_5px_rgba(22,24,31,.28)] transition-transform duration-300 ease-out motion-safe:animate-[spin_11s_linear_infinite] hover:scale-150 hover:[animation-play-state:paused] motion-reduce:animate-none sm:block" />
+          <Star aria-hidden className="absolute -right-3 top-1/2 h-4 w-4 fill-white text-white drop-shadow-[0_2px_5px_rgba(22,24,31,.28)] transition-transform duration-300 ease-out motion-safe:animate-[spin_9s_linear_infinite] hover:scale-150 hover:[animation-play-state:paused] motion-reduce:animate-none" />
+          <Star aria-hidden className="absolute -bottom-4 right-[38%] hidden h-3.5 w-3.5 fill-white text-white drop-shadow-[0_2px_4px_rgba(22,24,31,.28)] transition-transform duration-300 ease-out motion-safe:animate-[spin_7s_linear_infinite] hover:scale-150 hover:[animation-play-state:paused] motion-reduce:animate-none sm:block" />
+
+          <div className="grid gap-7 sm:grid-cols-3">
+            {mentors.map((m, i) => (
+              <Reveal key={m.id} delay={i * 90} variant="pop" className={MENTOR_CARD_OFFSET[i] ?? ""}>
+                <article className="relative h-full overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_18px_38px_-20px_rgba(22,24,31,.32)]">
+                  {m.photo ? (
+                    <Image src={m.photo} alt={m.name} width={500} height={500} className="aspect-square w-full object-cover" />
+                  ) : (
+                    <div className={cn("grid aspect-square place-items-center bg-gradient-to-br text-[2.6rem] font-extrabold text-white", MENTOR_BG[m.accent])}>
+                      {m.initial}
+                    </div>
+                  )}
+                  <div className="px-5 pb-6 pt-5">
+                    <b className="block text-[1.02rem] font-extrabold">{m.name}</b>
+                    <div className="mb-3.5 font-display text-[.82rem] text-muted-foreground">{m.track}</div>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-[.76rem] font-bold text-green">
+                      <Check className="h-3.5 w-3.5" /> {m.gapLabel}
+                    </span>
                   </div>
-                ) : (
-                  <div className={cn("grid aspect-[4/3] place-items-center bg-gradient-to-br text-[2.6rem] font-extrabold text-white", MENTOR_BG[m.accent])}>
-                    {m.initial}
-                  </div>
-                )}
-                <div className="px-5 pb-6 pt-5">
-                  <b className="block text-[1.02rem] font-extrabold">{m.name}</b>
-                  <div className="mb-3.5 font-display text-[.82rem] text-muted-foreground">{m.track}</div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-[.76rem] font-bold text-green">
-                    <Check className="h-3.5 w-3.5" /> {m.gapLabel}
-                  </span>
-                </div>
-              </article>
-            </Reveal>
-          ))}
+                </article>
+              </Reveal>
+            ))}
+          </div>
         </div>
       </div>
 
       <Reveal delay={160} className="mt-10 flex flex-wrap items-center gap-4">
-        <Link href="/mentors" className="group inline-flex items-center gap-2 text-[.94rem] font-bold text-primary">
+        <Link href="/courses" className="group inline-flex items-center gap-2 text-[.94rem] font-bold text-primary">
           قابل المينتورز <ArrowLeft className="h-[18px] w-[18px] transition-transform group-hover:-translate-x-1" />
         </Link>
         <span className="inline-flex items-center gap-2 rounded-full border border-dashed border-border bg-white px-[18px] py-2 text-[.8rem] font-semibold text-muted-foreground">
@@ -555,26 +560,26 @@ export async function CoursesSection() {
 /*  08 — المشاريع                                                      */
 /* ================================================================== */
 export async function ProjectsSection() {
-  const projects = await getProjects();
+  const projects = (await getPublishedProjects()).slice(0, 3);
+  if (projects.length === 0) return null;
+
   return (
     <Section id="projects" tone="sand" pattern="diag">
       <SectionHead num="08" label="المشاريع" title="النتيجة مش شهادة — النتيجة حاجة بنيتها" />
       <div className="grid gap-6 lg:grid-cols-3">
         {projects.map((p, i) => (
           <Reveal key={p.id} delay={i * 80} variant="pop">
-            <article className="h-full overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_28px_-12px_rgba(22,24,31,.2)]">
-              {p.shot ? (
-                <Image src={p.shot} alt={p.title} width={400} height={250} className="aspect-[16/10] w-full border-b border-border object-cover" />
-              ) : (
-                <div className="grid aspect-[16/10] place-items-center border-b border-border bg-sand p-3.5">
-                  <Icon3D name={p.accent === "green" ? "phone" : p.accent === "ink" ? "shield" : "code"} className="h-20 w-20" />
-                </div>
-              )}
+            <Link href={`/projects/${p.id}`} className="block h-full overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_28px_-12px_rgba(22,24,31,.2)]">
+              <div className="grid aspect-[16/10] place-items-center border-b border-border bg-sand p-3.5">
+                <Icon3D name="hammer" className="h-20 w-20" />
+              </div>
               <div className="px-5 pb-[22px] pt-[18px]">
                 <h3 className="mb-1 text-[1.12rem] font-extrabold">{p.title}</h3>
-                <div className="font-display text-[.82rem] text-muted-foreground">{p.track} · {p.author}</div>
+                <div className="font-display text-[.82rem] text-muted-foreground">
+                  {p.skills[0] ?? "مشروع طالب"} · {p.owner?.display_name || "طالب COCR"}
+                </div>
               </div>
-            </article>
+            </Link>
           </Reveal>
         ))}
       </div>
@@ -678,7 +683,7 @@ export async function OpportunitiesSection() {
                 <Icon3D name={o.icon} className="relative z-[2] h-[52px] w-[52px]" />
                 <h3 className="relative z-[2] text-[1.2rem] font-extrabold">{o.title}</h3>
                 <p className="relative z-[2] flex-1 text-[.93rem] text-muted-foreground">{o.description}</p>
-                <Link href={`/${o.id}`} className="group relative z-[2] mt-1.5 inline-flex items-center gap-2 text-[.94rem] font-bold text-primary">
+                <Link href="/opportunities" className="group relative z-[2] mt-1.5 inline-flex items-center gap-2 text-[.94rem] font-bold text-primary">
                   {o.cta} <ArrowLeft className="h-[18px] w-[18px] transition-transform group-hover:-translate-x-1" />
                 </Link>
               </article>
@@ -744,7 +749,7 @@ export function CtaSection() {
 const FOOTER_COLS = [
   { title: "المنصة", links: [["الرحلة", "/#journey"], ["أقسام المنصة", "/#sections"], ["المينتورز", "/#mentors"], ["الكورسات", "/courses"], ["المشاريع", "/projects"]] },
   { title: "الفرص", links: [["الفعاليات", "/opportunities"], ["المنح", "/opportunities"], ["التطوع", "/opportunities"], ["المجتمع", "/#stories"]] },
-  { title: "COCR", links: [["قصتنا", "/about"], ["مين COCR", "/#who"], ["Near Peer Learning", "/#nearpeer"], ["الأسئلة", "/#faq"], ["تواصل معانا", "/contact"]] },
+  { title: "COCR", links: [["قصتنا", "/about"], ["الأمان والثقة", "/safety"], ["مين COCR", "/#who"], ["Near Peer Learning", "/#nearpeer"], ["الأسئلة", "/#faq"], ["تواصل معانا", "/policies/safety-contact"]] },
 ];
 
 export function SiteFooter() {

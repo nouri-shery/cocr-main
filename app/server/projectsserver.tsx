@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getPublishedProjects, getProjectById, getProjectFeedback } from "../actions/projects_actions";
 import { ProjectsGrid, NewProjectForm, ProjectDetail, BackToProjects } from "../client/projects_client";
 import { SiteFooter } from "./landingserver";
 import { getCurrentUser } from "@/lib/supabase/get-user";
+import { AppPageHeader } from "@/components/homecomponent/app-page-header";
 
 export async function ProjectsPageContent() {
   const [projects, user] = await Promise.all([
@@ -15,17 +17,15 @@ export async function ProjectsPageContent() {
     <main className="relative overflow-hidden bg-cream pb-[100px] pt-[52px]">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] mx-auto max-w-[1160px] px-7">
-        <div className="mb-10 max-w-[38em]">
-          <span className="mb-3.5 block text-[.75rem] font-extrabold tracking-[.18em] text-gold-600">
-            المشاريع
-          </span>
-          <h1 className="mb-4 text-[clamp(1.95rem,3.9vw,2.95rem)] font-extrabold leading-tight tracking-tight">
-            النتيجة مش شهادة — النتيجة حاجة بنيتها
-          </h1>
-          <p className="text-[1.05rem] leading-[1.9] text-muted-foreground">
-            مشاريع حقيقية عملها طلاب COCR، تقدر تشوفها وتسيب ملاحظة تساعدهم.
-          </p>
-        </div>
+        <AppPageHeader
+          title="المشاريع"
+          context="مشاريع حقيقية عملها طلاب COCR — شوفها وسيب ملاحظة تساعدهم."
+          actions={user ? (
+            <Link href="/projects/new" className="rounded-xl bg-primary px-4 py-2.5 text-[.86rem] font-extrabold text-white">
+              + مشروع جديد
+            </Link>
+          ) : undefined}
+        />
 
         <ProjectsGrid projects={projects} isAuthenticated={!!user} />
       </div>
@@ -77,7 +77,7 @@ export async function ProjectDetailContent({ id }: { id: string }) {
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] mx-auto max-w-[820px] px-7">
         <BackToProjects />
-        <ProjectDetail project={project} isOwner={isOwner} isAuthenticated={!!user} feedback={feedback} />
+        <ProjectDetail project={project} isOwner={isOwner} isAuthenticated={!!user} feedback={feedback} currentUserId={user?.id ?? null} />
       </div>
     </main>
     <SiteFooter />

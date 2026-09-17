@@ -13,12 +13,17 @@ export interface Profile {
   display_name: string | null;
   bio: string | null;
   skills: string[];
+  interests: string[];
+  goal: string | null;
+  grade_or_education_stage: string | null;
 }
 
 export interface Enrollment {
   course_id: string;
   started_at: string;
 }
+
+const PROFILE_COLUMNS = "id, display_name, bio, skills, interests, goal, grade_or_education_stage";
 
 export async function getMyProfile(): Promise<Profile | null> {
   const cookieStore = await cookies();
@@ -28,11 +33,42 @@ export async function getMyProfile(): Promise<Profile | null> {
 
   const { data } = await supabase
     .from("profiles")
-    .select("id, display_name, bio, skills")
+    .select(PROFILE_COLUMNS)
     .eq("id", user.id)
     .maybeSingle();
 
-  return data ?? { id: user.id, display_name: null, bio: null, skills: [] };
+  return data ?? {
+    id: user.id, display_name: null, bio: null, skills: [],
+    interests: [], goal: null, grade_or_education_stage: null,
+  };
+}
+
+/** بتحفظ بيانات الأونبوردينج (المرحلة، الاهتمامات، الهدف) على الحساب فعليًا
+ * — بدل localStorage اللي بيتمسح مع أي جهاز جديد. نفس الأعمدة الحقيقية
+ * الموجودة بالفعل في profiles، الـ GRANT بس اتوسّع عليها في 0006 */
+export async function saveOnboardingData(
+  stage: string | null, interests: string[], goal: string | null,
+): Promise<{ error: string | null }> {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "لازم تسجّلي دخولك الأول." };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      grade_or_education_stage: stage,
+      interests,
+      goal,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
+
+  if (error) return { error: "حصل خطأ، جرّب تاني بعد شوية." };
+  revalidatePath("/profile");
+  revalidatePath("/dashboard");
+  revalidatePath("/onboarding");
+  return { error: null };
 }
 
 export async function updateProfile(

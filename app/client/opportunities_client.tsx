@@ -20,7 +20,8 @@ import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { cn } from "@/lib/utils";
 import { getDeadlineInfo, type DeadlineUrgency } from "../lib/opportunity-deadline";
 import { CATEGORY_LABELS } from "../lib/opportunity-categories";
-import { getOnboarding, INTEREST_TO_OPPORTUNITY_CATEGORY, INTEREST_TAG_HINTS } from "../lib/onboarding";
+import { INTEREST_TO_OPPORTUNITY_CATEGORY, INTEREST_TAG_HINTS, type InterestId } from "../lib/onboarding";
+import { getMySavedItemIds, toggleSavedItem } from "../actions/saved_actions";
 import { AuthPrompt } from "./auth-prompt";
 import type { OpportunityCategory, OpportunityFormat, OpportunityListing } from "../types/types";
 
@@ -80,29 +81,23 @@ function googleCalendarUrl(o: OpportunityListing) {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
-const SAVE_KEY = "cocr-saved-opportunities";
-
+/** محفوظ حقيقي على الحساب (جدول saved_items) — مش localStorage، فبيفضل موجود
+ * عبر أي جهاز أو متصفح، وشايفه الفريق لو احتاج. التحديث متفائل (optimistic)
+ * عشان الزرار يستجيب فورًا، وبيرجع لحالته الأصلية لو الـ server action فشل */
 export function useSavedOpportunities() {
   const [saved, setSaved] = React.useState<string[]>([]);
 
   React.useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(SAVE_KEY);
-      if (raw) setSaved(JSON.parse(raw));
-    } catch {
-      /* localStorage غير متاح — نكمل من غير حفظ */
-    }
+    getMySavedItemIds("opportunity").then(setSaved).catch(() => {});
   }, []);
 
   const toggle = React.useCallback((id: string) => {
-    setSaved((prev) => {
-      const next = prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id];
-      try {
-        window.localStorage.setItem(SAVE_KEY, JSON.stringify(next));
-      } catch {
-        /* تجاهل لو الحفظ فشل */
+    setSaved((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
+    toggleSavedItem("opportunity", id).then((res) => {
+      if (res.error) {
+        // فشل الحفظ فعليًا — نرجّع الحالة زي ما كانت قبل الضغطة
+        setSaved((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
       }
-      return next;
     });
   }, []);
 
@@ -132,9 +127,12 @@ interface OpportunitiesExplorerProps {
   initialOpportunities: OpportunityListing[];
   categories: { id: OpportunityCategory; label: string }[];
   isAuthenticated: boolean;
+  /** اهتمامات المستخدم الحقيقية من profiles.interests (مش localStorage) —
+   * فاضية لو مش مسجّل دخول أو لسه معملش أونبوردينج */
+  myInterests: InterestId[];
 }
 
-export function OpportunitiesExplorer({ initialOpportunities, categories, isAuthenticated }: OpportunitiesExplorerProps) {
+export function OpportunitiesExplorer({ initialOpportunities, categories, isAuthenticated, myInterests }: OpportunitiesExplorerProps) {
   const [category, setCategory] = React.useState<OpportunityCategory>("all");
   const [format, setFormat] = React.useState<OpportunityFormat | "all">("all");
   const [query, setQuery] = React.useState("");
@@ -149,16 +147,14 @@ export function OpportunitiesExplorer({ initialOpportunities, categories, isAuth
     if (!isAuthenticated) { setAuthPromptOpen(true); return; }
     toggle(id);
   };
-  const [interestMatch, setInterestMatch] = React.useState<{ categories: OpportunityCategory[]; tags: string[] } | null>(null);
 
-  React.useEffect(() => {
-    const onboarding = getOnboarding();
-    if (!onboarding || onboarding.interests.length === 0) return;
-    setInterestMatch({
-      categories: Array.from(new Set(onboarding.interests.flatMap((i) => INTEREST_TO_OPPORTUNITY_CATEGORY[i]))),
-      tags: Array.from(new Set(onboarding.interests.flatMap((i) => INTEREST_TAG_HINTS[i]))),
-    });
-  }, []);
+  const interestMatch = React.useMemo(() => {
+    if (myInterests.length === 0) return null;
+    return {
+      categories: Array.from(new Set(myInterests.flatMap((i) => INTEREST_TO_OPPORTUNITY_CATEGORY[i]))),
+      tags: Array.from(new Set(myInterests.flatMap((i) => INTEREST_TAG_HINTS[i]))),
+    };
+  }, [myInterests]);
 
   const recommendedOpportunities = React.useMemo(() => {
     if (!interestMatch) return [];

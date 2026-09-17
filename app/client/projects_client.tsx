@@ -7,9 +7,10 @@ import Link from "next/link";
 import { Hammer, ArrowRight, Pencil, Trash2, ExternalLink, Send } from "lucide-react";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { AuthPrompt } from "./auth-prompt";
+import { ReportButton } from "./report_dialog";
 import {
   createProject, updateProject, setProjectStatus, deleteProject,
-  submitFeedback,
+  submitFeedback, deleteFeedback,
   type Project, type ProjectWithOwner, type ProjectFeedback, type ProjectActionResult,
 } from "../actions/projects_actions";
 
@@ -29,14 +30,17 @@ export function ProjectsGrid({ projects, isAuthenticated }: { projects: ProjectW
 
   return (
     <div>
-      <div className="mb-8 flex justify-end">
-        <button
-          onClick={handleNewProject}
-          className="rounded-xl bg-primary px-5 py-2.5 text-[.9rem] font-extrabold text-white"
-        >
-          + شارك مشروعك
-        </button>
-      </div>
+      {/* لزوار مش مسجّلين بس — المستخدمين المسجّلين عندهم نفس الـaction فوق في عنوان الصفحة */}
+      {!isAuthenticated && (
+        <div className="mb-8 flex justify-end">
+          <button
+            onClick={handleNewProject}
+            className="rounded-xl bg-primary px-5 py-2.5 text-[.9rem] font-extrabold text-white"
+          >
+            + شارك مشروعك
+          </button>
+        </div>
+      )}
 
       {projects.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-border bg-white px-6 py-16 text-center">
@@ -158,9 +162,10 @@ function ProjectFields({ project }: { project?: Project }) {
 /* ProjectDetail — عرض/تعديل/نشر/حذف المشروع + الـ feedback            */
 /* ------------------------------------------------------------------ */
 export function ProjectDetail({
-  project, isOwner, isAuthenticated, feedback,
+  project, isOwner, isAuthenticated, feedback, currentUserId,
 }: {
   project: Project; isOwner: boolean; isAuthenticated: boolean; feedback: ProjectFeedback[];
+  currentUserId: string | null;
 }) {
   const router = useRouter();
   const [editing, setEditing] = React.useState(false);
@@ -242,7 +247,10 @@ export function ProjectDetail({
           </form>
         ) : (
           <>
-            <h1 className="text-[clamp(1.4rem,3vw,1.9rem)] font-extrabold leading-tight">{project.title}</h1>
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="text-[clamp(1.4rem,3vw,1.9rem)] font-extrabold leading-tight">{project.title}</h1>
+              {!isOwner && isAuthenticated && <ReportButton targetType="project" targetId={project.id} compact />}
+            </div>
             <p className="whitespace-pre-line text-[1rem] leading-[1.9] text-muted-foreground">
               {project.description || "مفيش وصف لسه."}
             </p>
@@ -267,7 +275,7 @@ export function ProjectDetail({
         )}
       </div>
 
-      <FeedbackSection projectId={project.id} feedback={feedback} isOwner={isOwner} isAuthenticated={isAuthenticated} />
+      <FeedbackSection projectId={project.id} feedback={feedback} isOwner={isOwner} isAuthenticated={isAuthenticated} currentUserId={currentUserId} />
     </div>
   );
 }
@@ -276,29 +284,62 @@ export function ProjectDetail({
 /* FeedbackSection                                                    */
 /* ------------------------------------------------------------------ */
 function FeedbackSection({
-  projectId, feedback, isOwner, isAuthenticated,
-}: { projectId: string; feedback: ProjectFeedback[]; isOwner: boolean; isAuthenticated: boolean }) {
+  projectId, feedback, isOwner, isAuthenticated, currentUserId,
+}: {
+  projectId: string; feedback: ProjectFeedback[]; isOwner: boolean; isAuthenticated: boolean;
+  currentUserId: string | null;
+}) {
   const [state, formAction, pending] = useActionState(submitFeedback.bind(null, projectId), initialState);
   const [authPromptOpen, setAuthPromptOpen] = React.useState(false);
+  const [items, setItems] = React.useState(feedback);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [, startTransition] = React.useTransition();
   const formRef = React.useRef<HTMLFormElement>(null);
 
   React.useEffect(() => {
     if (!pending && !state.error) formRef.current?.reset();
   }, [pending, state.error]);
 
+  // الـ prop بيتحدّث بعد revalidatePath (تعليق جديد اتبعت، أو حد تاني حذف
+  // تعليقه) — لازم نزامن الحالة المحلية معاه بدل ما تفضل قديمة
+  React.useEffect(() => {
+    setItems(feedback);
+  }, [feedback]);
+
+  const handleDelete = (feedbackId: string) => {
+    setDeletingId(feedbackId);
+    startTransition(async () => {
+      const res = await deleteFeedback(feedbackId, projectId);
+      if (res.ok) setItems((prev) => prev.filter((f) => f.id !== feedbackId));
+      setDeletingId(null);
+    });
+  };
+
   return (
     <div className="border-t border-dashed border-border p-[28px]">
-      <h2 className="mb-4 text-[1rem] font-extrabold">الملاحظات ({feedback.length})</h2>
+      <h2 className="mb-4 text-[1rem] font-extrabold">الملاحظات ({items.length})</h2>
 
-      {feedback.length === 0 && (
+      {items.length === 0 && (
         <p className="mb-4 text-[.88rem] text-muted-foreground">لسه مفيش ملاحظات على المشروع ده.</p>
       )}
 
       <div className="mb-5 flex flex-col gap-3">
-        {feedback.map((f) => (
-          <div key={f.id} className="rounded-xl border border-border p-3">
-            <p className="mb-1 text-[.8rem] font-bold text-slate-600">{f.author?.display_name ?? "طالب COCR"}</p>
-            <p className="text-[.88rem] text-muted-foreground">{f.body}</p>
+        {items.map((f) => (
+          <div key={f.id} className="flex items-start justify-between gap-3 rounded-xl border border-border p-3">
+            <div>
+              <p className="mb-1 text-[.8rem] font-bold text-slate-600">{f.author?.display_name ?? "طالب COCR"}</p>
+              <p className="text-[.88rem] text-muted-foreground">{f.body}</p>
+            </div>
+            {currentUserId === f.author_id && (
+              <button
+                onClick={() => handleDelete(f.id)}
+                disabled={deletingId === f.id}
+                aria-label="امسحي الملاحظة"
+                className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
         ))}
       </div>

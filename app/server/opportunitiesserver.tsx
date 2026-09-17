@@ -3,10 +3,13 @@ import { notFound } from "next/navigation";
 import { ArrowRight, Clock, MapPin, Wifi, Building2, Users2, ExternalLink, Wallet, BadgeCheck, CalendarPlus } from "lucide-react";
 import { OpportunitiesExplorer, ShareButton } from "../client/opportunities_client";
 import { getOpportunities, getOpportunityCategories, getOpportunityById } from "../actions/opportunities_actions";
+import { getMyProfile } from "../actions/profile_actions";
 import { getDeadlineInfo } from "../lib/opportunity-deadline";
 import { CATEGORY_LABELS } from "../lib/opportunity-categories";
+import { INTERESTS, type InterestId } from "../lib/onboarding";
 import { SiteFooter } from "./landingserver";
 import { getCurrentUser } from "@/lib/supabase/get-user";
+import { AppPageHeader } from "@/components/homecomponent/app-page-header";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { Badge } from "@/components/ui/badge";
 import type { OpportunityFormat, OpportunityListing } from "../types/types";
@@ -62,31 +65,33 @@ function googleCalendarUrl(o: OpportunityListing) {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
+const VALID_INTEREST_IDS = new Set(INTERESTS.map((i) => i.id));
+
 export async function OpportunitiesPageContent() {
   const [opportunities, categories, user] = await Promise.all([
     getOpportunities(),
     getOpportunityCategories(),
     getCurrentUser().catch(() => null),
   ]);
+  const profile = user ? await getMyProfile() : null;
+  const myInterests = (profile?.interests ?? []).filter((i): i is InterestId => VALID_INTEREST_IDS.has(i as InterestId));
 
   return (
     <>
     <main className="relative overflow-hidden bg-cream pb-[100px] pt-[52px]">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] mx-auto max-w-[1160px] px-7">
-        <div className="mb-10 max-w-[38em]">
-          <span className="mb-3.5 block text-[.75rem] font-extrabold tracking-[.18em] text-gold-600">
-            المنح والفرص والتطوع
-          </span>
-          <h1 className="mb-4 text-[clamp(1.95rem,3.9vw,2.95rem)] font-extrabold leading-tight tracking-tight">
-            الخطوة اللي بعد الرحلة
-          </h1>
-          <p className="text-[1.05rem] leading-[1.9] text-muted-foreground">
-            مسابقات، منح، وبرامج تطوع مناسبة لسنك، أونلاين وأوفلاين — بدل ما تدوّر لوحدك وتلاقي الديدلاين فات.
-          </p>
-        </div>
+        <AppPageHeader
+          title="المنح والفرص والتطوع"
+          context="مسابقات ومنح مناسبة لسنك — بدل ما تدوّر لوحدك وتلاقي الديدلاين فات."
+        />
 
-        <OpportunitiesExplorer initialOpportunities={opportunities} categories={categories} isAuthenticated={!!user} />
+        <OpportunitiesExplorer
+          initialOpportunities={opportunities}
+          categories={categories}
+          isAuthenticated={!!user}
+          myInterests={myInterests}
+        />
       </div>
     </main>
     <SiteFooter />
@@ -115,28 +120,20 @@ export async function OpportunityDetailContent({ id }: { id: string }) {
         </Link>
 
         <div className="overflow-hidden rounded-3xl border border-border bg-white">
-          <div className="relative grid h-[160px] place-items-center overflow-hidden" style={{ background: a.bg }}>
-            <span
-              aria-hidden
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `radial-gradient(circle at 1px 1px, ${a.dot} 1.3px, transparent 0)`,
-                backgroundSize: "18px 18px",
-              }}
-            />
-            <Icon3D name={opportunity.icon} className="relative z-10 h-20 w-20" />
+          {/* شريط علوي وظيفي بدل البلوك الزخرفي — الديدلاين والتصنيف حقيقيين وواضحين فورًا */}
+          <div className="flex flex-wrap items-center gap-3 border-b border-border px-[24px] py-4">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl" style={{ background: a.bg }}>
+              <Icon3D name={opportunity.icon} className="h-6 w-6" />
+            </span>
+            <Badge variant="outline" style={{ color: a.fg, borderColor: a.fg }}>
+              {CATEGORY_LABELS[opportunity.category]}
+            </Badge>
+            <span className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[.78rem] font-extrabold ${URGENCY_STYLE[deadlineInfo.urgency]}`}>
+              <Clock className="h-3.5 w-3.5" /> {deadlineInfo.label}
+            </span>
           </div>
 
           <div className="flex flex-col gap-4 p-[28px]">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Badge variant="outline" style={{ color: a.fg, borderColor: a.fg }}>
-                {CATEGORY_LABELS[opportunity.category]}
-              </Badge>
-              <span className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[.78rem] font-extrabold ${URGENCY_STYLE[deadlineInfo.urgency]}`}>
-                <Clock className="h-3.5 w-3.5" /> {deadlineInfo.label}
-              </span>
-            </div>
-
             <h1 className="text-[clamp(1.5rem,3vw,2rem)] font-extrabold leading-tight">{opportunity.title}</h1>
             <p className="text-[.95rem] font-bold text-slate-500">{opportunity.organization}</p>
             <p className="text-[1rem] leading-[1.9] text-muted-foreground">{opportunity.description}</p>

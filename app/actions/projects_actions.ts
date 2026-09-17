@@ -5,6 +5,20 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
+/**
+ * أسماء العرض بتتجاب من profiles_public (view ضيّق id+display_name بس)
+ * مش من profiles نفسها — بعد تضييق RLS بتاعة profiles لصفّ صاحبها بس،
+ * الـ embed المباشر (profiles!fkey) بقى بيرجّع null لأي حد غير صاحب الصف
+ */
+async function fetchDisplayNames(
+  supabase: Awaited<ReturnType<typeof createClient>>, ids: string[],
+): Promise<Record<string, string | null>> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return {};
+  const { data } = await supabase.from("profiles_public").select("id, display_name").in("id", unique);
+  return Object.fromEntries((data ?? []).map((p) => [p.id, p.display_name]));
+}
+
 export type ProjectStatus = "draft" | "published";
 
 export interface Project {
@@ -42,11 +56,13 @@ export async function getPublishedProjects(): Promise<ProjectWithOwner[]> {
   const supabase = createClient(cookieStore);
   const { data } = await supabase
     .from("projects")
-    .select("*, owner:profiles(display_name)")
+    .select("*")
     .eq("status", "published")
     .order("created_at", { ascending: false });
 
-  return (data as ProjectWithOwner[] | null) ?? [];
+  const projects = (data as Project[] | null) ?? [];
+  const names = await fetchDisplayNames(supabase, projects.map((p) => p.owner_id));
+  return projects.map((p) => ({ ...p, owner: { display_name: names[p.owner_id] ?? null } }));
 }
 
 /** مشروع واحد — بيرجع null لو مش موجود أو مش متاح للمستخدم الحالي (RLS) */
@@ -55,11 +71,14 @@ export async function getProjectById(id: string): Promise<ProjectWithOwner | nul
   const supabase = createClient(cookieStore);
   const { data } = await supabase
     .from("projects")
-    .select("*, owner:profiles(display_name)")
+    .select("*")
     .eq("id", id)
     .maybeSingle();
 
-  return data as ProjectWithOwner | null;
+  if (!data) return null;
+  const project = data as Project;
+  const names = await fetchDisplayNames(supabase, [project.owner_id]);
+  return { ...project, owner: { display_name: names[project.owner_id] ?? null } };
 }
 
 /** مشاريع المستخدم الحالي (منشورة ومسودّات) — للـ Dashboard/Profile */
@@ -192,11 +211,13 @@ export async function getProjectFeedback(projectId: string): Promise<ProjectFeed
   const supabase = createClient(cookieStore);
   const { data } = await supabase
     .from("project_feedback")
-    .select("*, author:profiles(display_name)")
+    .select("*")
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
 
-  return (data as ProjectFeedback[] | null) ?? [];
+  const feedback = (data as Omit<ProjectFeedback, "author">[] | null) ?? [];
+  const names = await fetchDisplayNames(supabase, feedback.map((f) => f.author_id));
+  return feedback.map((f) => ({ ...f, author: { display_name: names[f.author_id] ?? null } }));
 }
 
 export interface RecentFeedback extends ProjectFeedback {
@@ -216,12 +237,50 @@ export async function getMyRecentFeedback(limit = 3): Promise<RecentFeedback[]> 
 
   const { data } = await supabase
     .from("project_feedback")
-    .select("*, project:projects!inner(id, title, owner_id), author:profiles(display_name)")
+    .select("*, project:projects!inner(id, title, owner_id)")
     .eq("project.owner_id", user.id)
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  return (data as RecentFeedback[] | null) ?? [];
+  const feedback = (data as Omit<RecentFeedback, "author">[] | null) ?? [];
+  const names = await fetchDisplayNames(supabase, feedback.map((f) => f.author_id));
+  return feedback.map((f) => ({ ...f, author: { display_name: names[f.author_id] ?? null } }));
+}
+
+/** عدد الملاحظات اللي المستخدم الحالي كتبها لمشاريع ناس تانية — إشارة
+ * "مساهم" حقيقية في رحلة الطالب (Contributor)، مش رقم مُلفَّق */
+export async function getMyGivenFeedbackCount(): Promise<number> {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 0;
+
+  const { count } = await supabase
+    .from("project_feedback")
+    .select("id", { count: "exact", head: true })
+    .eq("author_id", user.id);
+
+  return count ?? 0;
+}
+
+/** الملاحظات اللي المستخدم الحالي كتبها لمشاريع ناس تانية — لقسم "ساهمت"
+ * في البروفايل */
+export async function getMyGivenFeedback(limit = 5): Promise<RecentFeedback[]> {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("project_feedback")
+    .select("*, project:projects!inner(id, title, owner_id)")
+    .eq("author_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  const feedback = (data as Omit<RecentFeedback, "author">[] | null) ?? [];
+  const names = await fetchDisplayNames(supabase, feedback.map((f) => f.author_id));
+  return feedback.map((f) => ({ ...f, author: { display_name: names[f.author_id] ?? null } }));
 }
 
 export async function submitFeedback(

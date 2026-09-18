@@ -14,7 +14,7 @@ import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { JourneyFull, computeJourney, type JourneySignals } from "./journey_client";
-import { avatarUrl } from "../lib/dicebear-avatar";
+import { avatarUrl } from "../lib/avatar-gallery";
 import type { Course, Mentor, OpportunityListing } from "../types/types";
 import type { Project, RecentFeedback } from "../actions/projects_actions";
 import type { CourseProgress } from "../actions/lessons_actions";

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeft, Calendar, ClipboardCheck, Star, Users } from "lucide-react";
 import { getCurrentUser } from "@/lib/supabase/get-user";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
-import { avatarUrl } from "../lib/dicebear-avatar";
+import { avatarUrl } from "../lib/avatar-gallery";
 import { groupByStudent } from "../lib/mentor-students";
 import { getMyMentorApplication } from "../actions/mentor_actions";
 import { getSubmissionsForMentor, getMyMentorRatingSummary } from "../actions/submissions_actions";

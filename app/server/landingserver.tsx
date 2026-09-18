@@ -563,6 +563,12 @@ export async function CoursesSection() {
 /* ================================================================== */
 /*  08 — المشاريع                                                      */
 /* ================================================================== */
+const PROJECT_TONE = [
+  { acc: "#1E45C4", bg: "#EEF2FE", dot: "rgba(30,69,196,.18)", icon: "hammer" },
+  { acc: "#B8801F", bg: "#FBF1DC", dot: "rgba(184,128,31,.18)", icon: "build" },
+  { acc: "#1E7A4E", bg: "#EAF6EF", dot: "rgba(30,122,78,.18)", icon: "rocket" },
+] as const;
+
 export async function ProjectsSection() {
   const projects = (await getPublishedProjects()).slice(0, 3);
   if (projects.length === 0) return null;
@@ -574,21 +580,52 @@ export async function ProjectsSection() {
       </span>
       <SectionHead num="08" numClassName="text-sugar-white" label="المشاريع" title="النتيجة مش شهادة — النتيجة حاجة بنيتها" />
       <div className="grid gap-6 lg:grid-cols-3">
-        {projects.map((p, i) => (
-          <Reveal key={p.id} delay={i * 80} variant="pop">
-            <Link href={`/projects/${p.id}`} className="block h-full overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_28px_-12px_rgba(22,24,31,.2)]">
-              <div className="grid aspect-[16/10] place-items-center border-b border-border bg-sand p-3.5">
-                <Icon3D name="hammer" className="h-20 w-20" />
-              </div>
-              <div className="px-5 pb-[22px] pt-[18px]">
-                <h3 className="mb-1 text-[1.12rem] font-extrabold">{p.title}</h3>
-                <div className="font-display text-[.82rem] text-muted-foreground">
-                  {p.skills[0] ?? "مشروع طالب"} · {p.owner?.display_name || "طالب COCR"}
+        {projects.map((p, i) => {
+          const t = PROJECT_TONE[i % PROJECT_TONE.length];
+          const ownerName = p.owner?.display_name || "طالب COCR";
+          return (
+            <Reveal key={p.id} delay={i * 80} variant="pop">
+              <Link href={`/projects/${p.id}`} className="group flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1.5 hover:border-transparent hover:shadow-[0_22px_50px_-22px_rgba(22,24,31,.3)]">
+                <div className="relative overflow-hidden px-6 pb-5 pt-6" style={{ background: t.bg }}>
+                  <span aria-hidden className="absolute inset-0"
+                    style={{
+                      backgroundImage: `radial-gradient(circle at 1px 1px, ${t.dot} 1.2px, transparent 0)`,
+                      backgroundSize: "18px 18px",
+                      maskImage: "linear-gradient(to bottom,#000,transparent)",
+                      WebkitMaskImage: "linear-gradient(to bottom,#000,transparent)",
+                    }} />
+                  <Icon3D name={t.icon} className="relative z-[2] h-14 w-14 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105" />
                 </div>
-              </div>
-            </Link>
-          </Reveal>
-        ))}
+                <span className="h-[4px]" style={{ background: t.acc }} />
+
+                <div className="flex flex-1 flex-col px-6 pb-6 pt-5">
+                  <h3 className="mb-1.5 text-[1.1rem] font-extrabold leading-snug">{p.title}</h3>
+                  <p className="mb-4 flex-1 text-[.86rem] leading-relaxed text-muted-foreground line-clamp-2">{p.description}</p>
+
+                  {p.skills.length > 0 && (
+                    <div className="mb-4 flex flex-wrap gap-1.5">
+                      {p.skills.slice(0, 3).map((s) => (
+                        <span key={s} className="rounded-full px-2.5 py-1 text-[.72rem] font-bold" style={{ background: t.bg, color: t.acc }}>
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-auto flex items-center justify-between border-t border-border pt-4">
+                    <div className="flex items-center gap-2">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[.72rem] font-extrabold text-white" style={{ background: t.acc }}>
+                        {ownerName.slice(0, 1)}
+                      </span>
+                      <span className="text-[.8rem] font-bold text-slate-600">{ownerName}</span>
+                    </div>
+                    <ArrowLeft className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-x-1" style={{ color: t.acc }} />
+                  </div>
+                </div>
+              </Link>
+            </Reveal>
+          );
+        })}
       </div>
       <Reveal delay={200} className="mt-9">
         <Link href="/projects" className="group inline-flex items-center gap-2 text-[.94rem] font-bold text-primary">

@@ -8,13 +8,13 @@ import {
   User, Trophy, Calendar, Clock,
 } from "lucide-react";
 import { signOut } from "@/components/homecomponent/auth/actions";
-import { updateProfile, type ProfileActionResult } from "../actions/profile_actions";
+import { updateProfile, setAvatarChoice, type ProfileActionResult } from "../actions/profile_actions";
 import { INTERESTS, STAGES, GOALS, type InterestId, type StageId, type GoalId } from "../lib/onboarding";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { JourneyFull, computeJourney, type JourneySignals } from "./journey_client";
-import { avatarUrl } from "../lib/avatar-gallery";
+import { AVATARS, resolveAvatarSrc } from "../lib/avatar-gallery";
 import type { Course, Mentor, OpportunityListing } from "../types/types";
 import type { Project, RecentFeedback } from "../actions/projects_actions";
 import type { CourseProgress } from "../actions/lessons_actions";
@@ -55,12 +55,12 @@ function memberSinceLabel(iso: string): string {
 }
 
 export function ProfileClient({
-  name, email, bio, skills, stage, gender, userId, interests, goal,
+  name, email, bio, skills, stage, gender, userId, avatarId, interests, goal,
   startedCourses, progressByCourse, mentorById, projects, givenFeedback, givenFeedbackCount,
   savedOpportunities, upcomingSessions, memberSince, journeySignals, activity, isApprovedMentor,
 }: {
   name: string; email: string; bio: string; skills: string[];
-  stage: string | null; gender: "male" | "female" | null; userId: string;
+  stage: string | null; gender: "male" | "female" | null; userId: string; avatarId: string | null;
   interests: string[]; goal: string | null;
   startedCourses: Course[]; progressByCourse: Record<string, CourseProgress>;
   mentorById: Record<string, Mentor>;
@@ -75,6 +75,17 @@ export function ProfileClient({
   const [tab, setTab] = React.useState<TabId>("info");
   const [editing, setEditing] = React.useState(false);
   const [state, formAction, pending] = useActionState(updateProfile, initialState);
+  const [pickingAvatar, setPickingAvatar] = React.useState(false);
+  const [avatarChoice, setAvatarChoiceLocal] = React.useState(avatarId);
+  const [savingAvatar, setSavingAvatar] = React.useState(false);
+
+  async function pickAvatar(id: string) {
+    setAvatarChoiceLocal(id);
+    setPickingAvatar(false);
+    setSavingAvatar(true);
+    await setAvatarChoice(id);
+    setSavingAvatar(false);
+  }
 
   const wasPending = React.useRef(false);
   React.useEffect(() => {
@@ -99,13 +110,48 @@ export function ProfileClient({
         </span>
         <div className="relative z-[1] flex flex-wrap items-center justify-between gap-6">
           <div className="flex items-center gap-5">
-            {gender ? (
-              <img src={avatarUrl(userId, gender)} alt="" className="h-20 w-20 shrink-0 rounded-full border-2 border-white shadow-sm" />
-            ) : (
-              <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-blue-tint text-[1.7rem] font-extrabold text-primary">
-                {name.slice(0, 1).toUpperCase()}
-              </div>
-            )}
+            <div className="relative shrink-0">
+              {gender || avatarChoice ? (
+                <img
+                  src={resolveAvatarSrc(userId, gender ?? "female", avatarChoice)}
+                  alt=""
+                  className={cn("h-20 w-20 rounded-full border-2 border-white shadow-sm", savingAvatar && "opacity-60")}
+                />
+              ) : (
+                <div className="grid h-20 w-20 place-items-center rounded-full bg-blue-tint text-[1.7rem] font-extrabold text-primary">
+                  {name.slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setPickingAvatar((v) => !v)}
+                aria-label="غيّر صورتك الشخصية"
+                className="absolute -bottom-1 -left-1 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-primary text-white shadow-sm transition-transform hover:scale-105"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+
+              {pickingAvatar && (
+                <div className="absolute top-full z-10 mt-2 w-72 rounded-2xl border border-border bg-white p-3 shadow-[0_20px_50px_-20px_rgba(22,24,31,.35)]">
+                  <p className="mb-2 px-1 text-[.78rem] font-bold text-muted-foreground">اختار صورتك</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {AVATARS.map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => pickAvatar(a.id)}
+                        className={cn(
+                          "overflow-hidden rounded-full border-2 transition-all hover:scale-105",
+                          avatarChoice === a.id ? "border-primary" : "border-transparent",
+                        )}
+                      >
+                        <img src={a.src} alt="" className="h-14 w-14" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             <div>
               <p className="text-[1.2rem] font-extrabold">{name}</p>
               <p className="text-[.84rem] text-muted-foreground">{email}</p>

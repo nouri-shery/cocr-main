@@ -103,6 +103,7 @@ export async function ProfilePageContent() {
           stage={profile?.grade_or_education_stage ?? null}
           gender={profile?.gender ?? null}
           userId={user.id}
+          avatarId={profile?.avatar_id ?? null}
           interests={profile?.interests ?? []}
           goal={profile?.goal ?? null}
           startedCourses={startedCourses}

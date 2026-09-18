@@ -17,6 +17,7 @@ export interface Profile {
   goal: string | null;
   grade_or_education_stage: string | null;
   gender: "male" | "female" | null;
+  avatar_id: string | null;
 }
 
 export interface Enrollment {
@@ -24,7 +25,7 @@ export interface Enrollment {
   started_at: string;
 }
 
-const PROFILE_COLUMNS = "id, display_name, bio, skills, interests, goal, grade_or_education_stage, gender";
+const PROFILE_COLUMNS = "id, display_name, bio, skills, interests, goal, grade_or_education_stage, gender, avatar_id";
 
 export async function getMyProfile(): Promise<Profile | null> {
   const cookieStore = await cookies();
@@ -40,8 +41,31 @@ export async function getMyProfile(): Promise<Profile | null> {
 
   return data ?? {
     id: user.id, display_name: null, bio: null, skills: [],
-    interests: [], goal: null, grade_or_education_stage: null, gender: null,
+    interests: [], goal: null, grade_or_education_stage: null, gender: null, avatar_id: null,
   };
+}
+
+/** الطالب بيتاخد أفاتار تلقائي أول ما يحدد جنسه، بس يقدر يغيّره بعدين لأي
+ * واحد تاني من نفس الجاليري — avatarId لازم يكون id حقيقي من AVATARS، مش
+ * أي نص حر */
+export async function setAvatarChoice(avatarId: string): Promise<{ error: string | null }> {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "لازم تسجّلي دخولك الأول." };
+
+  const { AVATARS } = await import("../lib/avatar-gallery");
+  if (!AVATARS.some((a) => a.id === avatarId)) return { error: "اختيار غير صالح." };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ avatar_id: avatarId, updated_at: new Date().toISOString() })
+    .eq("id", user.id);
+
+  if (error) return { error: "حصل خطأ، جرّب تاني بعد شوية." };
+  revalidatePath("/profile");
+  revalidatePath("/mentor");
+  return { error: null };
 }
 
 /** بتحفظ بيانات الأونبوردينج (المرحلة، الاهتمامات، الهدف، وشكل الأفاتار

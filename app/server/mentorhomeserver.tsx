@@ -3,9 +3,10 @@ import { redirect } from "next/navigation";
 import { ArrowLeft, Calendar, ClipboardCheck, Star, Users } from "lucide-react";
 import { getCurrentUser } from "@/lib/supabase/get-user";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
-import { avatarUrl } from "../lib/avatar-gallery";
+import { resolveAvatarSrc } from "../lib/avatar-gallery";
 import { groupByStudent } from "../lib/mentor-students";
 import { getMyMentorApplication } from "../actions/mentor_actions";
+import { getMyProfile } from "../actions/profile_actions";
 import { getSubmissionsForMentor, getMyMentorRatingSummary } from "../actions/submissions_actions";
 import { getUpcomingSessionsForMentor } from "../actions/course_sessions_actions";
 import { SubmissionReviewRow } from "../client/mentor_inbox_client";
@@ -29,10 +30,11 @@ export async function MentorHomeContent() {
   const application = await getMyMentorApplication();
   if (application?.status !== "approved") redirect("/become-a-mentor");
 
-  const [submissions, ratingSummary, upcomingSessionRows] = await Promise.all([
+  const [submissions, ratingSummary, upcomingSessionRows, profile] = await Promise.all([
     getSubmissionsForMentor(),
     getMyMentorRatingSummary(),
     getUpcomingSessionsForMentor(),
+    getMyProfile(),
   ]);
 
   const students = groupByStudent(submissions);
@@ -56,7 +58,7 @@ export async function MentorHomeContent() {
           </span>
           <div className="relative z-[1] flex flex-wrap items-center gap-5">
             <img
-              src={avatarUrl(user.id, application.gender)}
+              src={resolveAvatarSrc(user.id, application.gender, profile?.avatar_id ?? null)}
               alt=""
               className="h-16 w-16 shrink-0 rounded-full border-2 border-white shadow-sm transition-transform duration-300 hover:scale-105 hover:rotate-2"
             />

@@ -25,10 +25,22 @@ export const AVATARS: AvatarOption[] = [
 ];
 
 /** توزيع بسيط وثابت — نفس الـseed دايمًا بيطلع بنفس الأفاتار، عشان الأفاتار
- * مايتغيرش كل مرة يفتح فيها المستخدم الصفحة */
+ * مايتغيرش كل مرة يفتح فيها المستخدم الصفحة (ده الافتراضي قبل ما يختار) */
 export function avatarUrl(seed: string, gender: "male" | "female"): string {
   const options = AVATARS.filter((a) => a.gender === gender);
   let hash = 0;
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
   return options[hash % options.length].src;
+}
+
+/** المصدر الفعلي للأفاتار — لو المستخدم اختار واحد بنفسه (avatarId محفوظ في
+ * profiles) بيتقدّم عليه، وإلا بيرجع للتعيين التلقائي الثابت */
+export function resolveAvatarSrc(
+  seed: string, gender: "male" | "female", avatarId: string | null,
+): string {
+  if (avatarId) {
+    const chosen = AVATARS.find((a) => a.id === avatarId);
+    if (chosen) return chosen.src;
+  }
+  return avatarUrl(seed, gender);
 }

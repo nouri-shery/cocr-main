@@ -3,10 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/get-user";
 import {
   isCurrentUserStaff, isCurrentUserSuperAdmin, listMentorApplications, listReports, listDeletionRequests, listModerationLog,
-  listCourseProposals,
+  listCourseProposals, listPendingProjectReviews,
 } from "../actions/admin_actions";
 import { listPolicies, getPolicyBySlug } from "../actions/policy_actions";
-import { MentorApplicationRow, ReportRow, DeletionRequestRow, CourseProposalRow } from "../client/admin_client";
+import { MentorApplicationRow, ReportRow, DeletionRequestRow, CourseProposalRow, ProjectReviewQueue } from "../client/admin_client";
 import { PolicyEditorForm } from "../client/policy_admin_client";
 
 async function requireStaff() {
@@ -29,6 +29,7 @@ function AdminShell({ title, children }: { title: string; children: React.ReactN
       <div className="mb-6 flex flex-wrap items-center gap-4 border-b border-border pb-4">
         <Link href="/admin/mentor-applications" className="text-[.85rem] font-bold text-primary hover:underline">طلبات المينتورز</Link>
         <Link href="/admin/course-proposals" className="text-[.85rem] font-bold text-primary hover:underline">طلبات كورسات جديدة</Link>
+        <Link href="/admin/projects" className="text-[.85rem] font-bold text-primary hover:underline">مشاريع التخرّج</Link>
         <Link href="/admin/reports" className="text-[.85rem] font-bold text-primary hover:underline">البلاغات</Link>
         <Link href="/admin/deletion-requests" className="text-[.85rem] font-bold text-primary hover:underline">طلبات حذف الحساب</Link>
         <Link href="/admin/moderation-log" className="text-[.85rem] font-bold text-primary hover:underline">سجل المراجعة</Link>
@@ -77,6 +78,20 @@ export async function AdminCourseProposalsContent() {
           ))}
         </div>
       )}
+    </AdminShell>
+  );
+}
+
+export async function AdminProjectReviewsContent() {
+  await requireStaff();
+  const projects = await listPendingProjectReviews();
+
+  return (
+    <AdminShell title="مشاريع التخرّج">
+      <p className="mb-4 text-[.82rem] text-muted-foreground">
+        الموافقة هنا بتنشر المشروع فورًا في /projects كـ&quot;مشروع تخرّج موثّق&quot;. الرفض بيرجّعه للطالب بسبب واضح، وهو يقدر يعدّل ويبعته تاني.
+      </p>
+      <ProjectReviewQueue projects={projects} />
     </AdminShell>
   );
 }

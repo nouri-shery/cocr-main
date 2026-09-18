@@ -1,10 +1,11 @@
 import { ProjectsPageContent } from "../server/projectsserver";
 
 export const metadata = {
-  title: "المشاريع — COCR",
-  description: "مشاريع حقيقية عملها طلاب COCR.",
+  title: "مشاريع التخرّج — COCR",
+  description: "مشاريع تخرّج موثّقة لطلاب COCR.",
 };
 
-export default function ProjectsPage() {
-  return <ProjectsPageContent />;
+export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const { q } = await searchParams;
+  return <ProjectsPageContent search={q} />;
 }

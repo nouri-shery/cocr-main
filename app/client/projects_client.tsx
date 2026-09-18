@@ -4,19 +4,33 @@ import * as React from "react";
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Hammer, ArrowRight, ArrowLeft, Pencil, Trash2, ExternalLink, Send, Check } from "lucide-react";
+import {
+  Hammer, ArrowRight, ArrowLeft, Pencil, Trash2, ExternalLink, Send, Check,
+  Bookmark, BookmarkCheck, Eye, ShieldCheck, CodeXml, Video, Search, Clock, X,
+} from "lucide-react";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { AuthPrompt } from "./auth-prompt";
 import { ReportButton } from "./report_dialog";
 import { cn } from "@/lib/utils";
+import { toggleSavedItem } from "../actions/saved_actions";
 import {
-  createProject, updateProject, setProjectStatus, deleteProject,
+  createProject, updateProject, submitProjectForReview, deleteProject,
   submitFeedback, deleteFeedback,
   type Project, type ProjectWithOwner, type ProjectFeedback, type ProjectActionResult,
+  type OwnerProjectReview, type MentorProjectReview,
 } from "../actions/projects_actions";
 import type { IconName } from "../types/types";
 
 const initialState: ProjectActionResult = { error: null };
+
+type CourseOption = { id: string; title: string };
+
+const STATUS_LABEL: Record<Project["status"], string> = {
+  draft: "مسودّة 🔒",
+  pending_review: "مستنية مراجعة الفريق ⏳",
+  published: "مشروع تخرّج موثّق ✅",
+  rejected: "محتاج تعديل 🔁",
+};
 
 /* ------------------------------------------------------------------ */
 /* زرار "شارك مشروعك" — بيتستخدم في الـhero وفي الـempty state. لزوار
@@ -81,7 +95,9 @@ function hashString(value: string): number {
   return hash;
 }
 
-function ProjectCover({ project, featured }: { project: ProjectWithOwner; featured?: boolean }) {
+function ProjectCover({
+  project, featured, saved, onToggleSaved,
+}: { project: ProjectWithOwner; featured?: boolean; saved: boolean; onToggleSaved: () => void }) {
   const variant = COVER_VARIANTS[hashString(project.id) % COVER_VARIANTS.length];
   const icon = pickCoverIcon(project.skills);
   return (
@@ -98,6 +114,14 @@ function ProjectCover({ project, featured }: { project: ProjectWithOwner; featur
           featured ? "h-32 w-32" : "h-24 w-24",
         )}
       />
+      <button
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSaved(); }}
+        aria-label={saved ? "إلغاء الحفظ" : "احفظ المشروع"}
+        aria-pressed={saved}
+        className="absolute end-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-sm transition-colors hover:text-primary"
+      >
+        {saved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
+      </button>
       <span className={cn(
         "relative grid place-items-center rounded-full bg-white shadow-[0_6px_18px_-8px_rgba(22,24,31,.25)]",
         featured ? "h-16 w-16" : "h-12 w-12",
@@ -112,16 +136,23 @@ function ProjectCover({ project, featured }: { project: ProjectWithOwner; featur
 /* ProjectCard — الوحدة الأساسية لعرض مشروع، سواء في الـfeatured spotlight
  * أو في الشبكة العادية */
 /* ------------------------------------------------------------------ */
-function ProjectCard({ project, featured }: { project: ProjectWithOwner; featured?: boolean }) {
+function ProjectCard({
+  project, featured, saved, onToggleSaved,
+}: { project: ProjectWithOwner; featured?: boolean; saved: boolean; onToggleSaved: () => void }) {
   const initial = (project.owner?.display_name ?? "ط").trim().charAt(0).toUpperCase();
   return (
     <Link
       href={`/projects/${project.id}`}
       className="group flex h-full flex-col gap-4 rounded-3xl border border-border bg-white p-4 transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_20px_40px_-22px_rgba(22,24,31,.28)]"
     >
-      <ProjectCover project={project} featured={featured} />
+      <ProjectCover project={project} featured={featured} saved={saved} onToggleSaved={onToggleSaved} />
 
       <div className="flex flex-1 flex-col gap-2.5 px-1">
+        <div className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[.68rem] font-extrabold text-green">
+            <ShieldCheck className="h-3 w-3" /> موثّق
+          </span>
+        </div>
         <p className={cn("font-extrabold leading-snug", featured ? "text-[1.25rem]" : "text-[1.04rem]")}>
           {project.title}
         </p>
@@ -164,8 +195,35 @@ function ProjectCard({ project, featured }: { project: ProjectWithOwner; feature
  * (لو البيانات كفاية) + فلاتر مهارات مبنية من البيانات الحقيقية بس +
  * شبكة portfolio */
 /* ------------------------------------------------------------------ */
-export function ProjectsGrid({ projects, isAuthenticated }: { projects: ProjectWithOwner[]; isAuthenticated: boolean }) {
+export function ProjectsGrid({
+  projects, isAuthenticated, initialSavedIds, initialSearch,
+}: { projects: ProjectWithOwner[]; isAuthenticated: boolean; initialSavedIds: string[]; initialSearch: string }) {
+  const router = useRouter();
   const [activeSkill, setActiveSkill] = React.useState<string | null>(null);
+  const [saved, setSaved] = React.useState<string[]>(initialSavedIds);
+  const [searchInput, setSearchInput] = React.useState(initialSearch);
+  const [authPromptOpen, setAuthPromptOpen] = React.useState(false);
+
+  const toggleSaved = React.useCallback((id: string) => {
+    if (!isAuthenticated) { setAuthPromptOpen(true); return; }
+    setSaved((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
+    toggleSavedItem("project", id).then((res) => {
+      if (res.error) setSaved((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
+    });
+  }, [isAuthenticated]);
+
+  // بحث بيتحدّث في الرابط (server-side فعليًا في getPublishedProjects)،
+  // بس بـ debounce بسيط عشان مش كل ضغطة تعمل navigation
+  React.useEffect(() => {
+    const t = setTimeout(() => {
+      const params = new URLSearchParams();
+      if (searchInput.trim()) params.set("q", searchInput.trim());
+      const qs = params.toString();
+      router.push(qs ? `/projects?${qs}` : "/projects", { scroll: false });
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
 
   const skillChips = React.useMemo(() => {
     const freq = new Map<string, number>();
@@ -186,33 +244,68 @@ export function ProjectsGrid({ projects, isAuthenticated }: { projects: ProjectW
   const rest = projects.filter((p) => !featuredIds.has(p.id));
   const visible = activeSkill ? rest.filter((p) => p.skills.includes(activeSkill)) : rest;
 
+  const searchBar = (
+    <div className="relative">
+      <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <input
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        placeholder="ابحث عن مشروع، مهارة، أو اسم صاحب المشروع..."
+        className="h-12 w-full rounded-2xl border border-border bg-white ps-11 pe-4 text-[.9rem] outline-none focus:border-primary"
+      />
+      {searchInput && (
+        <button
+          onClick={() => setSearchInput("")}
+          aria-label="امسح البحث"
+          className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+
   if (projects.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-border bg-white px-6 py-20 text-center">
-        <span className="grid h-16 w-16 place-items-center rounded-full bg-blue-tint">
-          <Hammer className="h-7 w-7 text-primary" />
-        </span>
-        <p className="text-[1.1rem] font-extrabold">لسه مفيش مشاريع هنا</p>
-        <p className="max-w-[24em] text-[.92rem] text-muted-foreground">يمكن مشروعك يكون أول واحد.</p>
-        <ShareProjectCta
-          isAuthenticated={isAuthenticated}
-          className="mt-2 rounded-xl bg-primary px-5 py-2.5 text-[.9rem] font-extrabold text-white"
-        />
+      <div className="flex flex-col gap-6">
+        {searchBar}
+        <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-border bg-white px-6 py-20 text-center">
+          <span className="grid h-16 w-16 place-items-center rounded-full bg-blue-tint">
+            <Hammer className="h-7 w-7 text-primary" />
+          </span>
+          {initialSearch || searchInput ? (
+            <>
+              <p className="text-[1.1rem] font-extrabold">مفيش نتايج لـ&quot;{searchInput}&quot;</p>
+              <p className="max-w-[24em] text-[.92rem] text-muted-foreground">جرّبي كلمة تانية أو امسحي البحث.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-[1.1rem] font-extrabold">لسه مفيش مشاريع موثّقة هنا</p>
+              <p className="max-w-[24em] text-[.92rem] text-muted-foreground">يمكن مشروعك يكون أول واحد.</p>
+              <ShareProjectCta
+                isAuthenticated={isAuthenticated}
+                className="mt-2 rounded-xl bg-primary px-5 py-2.5 text-[.9rem] font-extrabold text-white"
+              />
+            </>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-10">
+      {searchBar}
+
       {featured.length > 0 && (
         <section>
           <h2 className="mb-4 text-[1rem] font-extrabold text-slate-600">مختارات من مشاريع الطلاب</h2>
           <div className="grid gap-5 lg:grid-cols-2">
-            <ProjectCard project={featured[0]} featured />
+            <ProjectCard project={featured[0]} featured saved={saved.includes(featured[0].id)} onToggleSaved={() => toggleSaved(featured[0].id)} />
             {featured.length > 1 && (
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1">
                 {featured.slice(1).map((p) => (
-                  <ProjectCard key={p.id} project={p} />
+                  <ProjectCard key={p.id} project={p} saved={saved.includes(p.id)} onToggleSaved={() => toggleSaved(p.id)} />
                 ))}
               </div>
             )}
@@ -254,23 +347,67 @@ export function ProjectsGrid({ projects, isAuthenticated }: { projects: ProjectW
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((p) => (
-            <ProjectCard key={p.id} project={p} />
+            <ProjectCard key={p.id} project={p} saved={saved.includes(p.id)} onToggleSaved={() => toggleSaved(p.id)} />
           ))}
         </div>
       )}
+
+      <AuthPrompt
+        open={authPromptOpen}
+        onOpenChange={setAuthPromptOpen}
+        title="عايز تحفظ المشروع ده؟"
+        description="اعمل حساب مجاني في COCR عشان تقدر تحفظ المشاريع اللي عجباك وترجعلها بعدين."
+      />
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* MyProjectsSidebar — جوّه /projects، عشان الطالب يشوف حالة مشاريعه هو
+ * وهو بيتصفّح — بتستخدم نفس الـ actions المستخدمة في /profile و/dashboard،
+ * مفيش منطق جديد اتكرر */
+/* ------------------------------------------------------------------ */
+export function MyProjectsSidebar({ projects, givenFeedbackCount }: { projects: Project[]; givenFeedbackCount: number }) {
+  return (
+    <aside className="hidden h-fit flex-col gap-4 rounded-3xl border border-border bg-white p-5 lg:flex">
+      <div className="flex items-center justify-between">
+        <h2 className="text-[.95rem] font-extrabold">مشروعي</h2>
+        <Link href="/projects/new" className="text-[.78rem] font-extrabold text-primary hover:underline">+ جديد</Link>
+      </div>
+
+      {projects.length === 0 ? (
+        <p className="text-[.82rem] text-muted-foreground">لسه معملتش مشروع تخرّج. أول ما تخلّص كورس، ابدأ بمشروعك هنا.</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {projects.slice(0, 5).map((p) => (
+            <Link
+              key={p.id}
+              href={`/projects/${p.id}`}
+              className="flex items-center justify-between gap-2 rounded-xl border border-border px-3 py-2 text-[.8rem] font-bold hover:border-primary/40"
+            >
+              <span className="truncate">{p.title || "بدون عنوان"}</span>
+              <span className="shrink-0 text-[.68rem] font-extrabold text-slate-500">{STATUS_LABEL[p.status].split(" ")[0]}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <div className="border-t border-dashed border-border pt-3 text-[.8rem] text-muted-foreground">
+        ساهمت بملاحظات في <b className="text-foreground">{givenFeedbackCount}</b> مشروع لزمايلك
+      </div>
+    </aside>
   );
 }
 
 /* ------------------------------------------------------------------ */
 /* ProjectForm — بيتستخدم في /projects/new والتعديل في /projects/[id]  */
 /* ------------------------------------------------------------------ */
-export function NewProjectForm() {
+export function NewProjectForm({ courses }: { courses: CourseOption[] }) {
   const [state, formAction, pending] = useActionState(createProject, initialState);
 
   return (
     <form action={formAction} className="flex flex-col gap-4 rounded-3xl border border-border bg-white p-6">
-      <ProjectFields />
+      <ProjectFields courses={courses} />
       {state.error && <p className="text-[.85rem] font-semibold text-destructive">{state.error}</p>}
       <button
         type="submit"
@@ -279,12 +416,12 @@ export function NewProjectForm() {
       >
         {pending ? "لحظة..." : "احفظ كمسودّة"}
       </button>
-      <p className="text-center text-[.78rem] text-slate-400">هتقدر تنشره بعد كده من صفحة المشروع.</p>
+      <p className="text-center text-[.78rem] text-slate-400">هتقدر تبعته لمراجعة الفريق بعد كده من صفحة المشروع.</p>
     </form>
   );
 }
 
-function ProjectFields({ project }: { project?: Project }) {
+function ProjectFields({ project, courses }: { project?: Project; courses: CourseOption[] }) {
   return (
     <>
       <label className="flex flex-col gap-1.5">
@@ -311,6 +448,19 @@ function ProjectFields({ project }: { project?: Project }) {
         />
       </label>
       <label className="flex flex-col gap-1.5">
+        <span className="text-[.84rem] font-bold text-slate-600">الكورس اللي المشروع ده تخرّجك منه</span>
+        <select
+          name="course_id"
+          defaultValue={project?.course_id ?? ""}
+          className="h-11 rounded-xl border border-border bg-white px-3 text-[.9rem] outline-none focus:border-primary"
+        >
+          <option value="">اختار الكورس...</option>
+          {courses.map((c) => (
+            <option key={c.id} value={c.id}>{c.title}</option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1.5">
         <span className="text-[.84rem] font-bold text-slate-600">المهارات (افصل بينهم بفاصلة)</span>
         <input
           name="skills"
@@ -320,12 +470,34 @@ function ProjectFields({ project }: { project?: Project }) {
         />
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className="text-[.84rem] font-bold text-slate-600">لينك المشروع (اختياري)</span>
+        <span className="text-[.84rem] font-bold text-slate-600">لينك الديمو/المشروع (اختياري)</span>
         <input
           name="project_link"
           type="url"
           defaultValue={project?.project_link ?? ""}
           placeholder="https://..."
+          dir="ltr"
+          className="h-11 rounded-xl border border-border px-3 text-[.9rem] outline-none focus:border-primary"
+        />
+      </label>
+      <label className="flex flex-col gap-1.5">
+        <span className="text-[.84rem] font-bold text-slate-600">لينك الجيت هاب — لازم قبل الإرسال للمراجعة</span>
+        <input
+          name="github_url"
+          type="url"
+          defaultValue={project?.github_url ?? ""}
+          placeholder="https://github.com/..."
+          dir="ltr"
+          className="h-11 rounded-xl border border-border px-3 text-[.9rem] outline-none focus:border-primary"
+        />
+      </label>
+      <label className="flex flex-col gap-1.5">
+        <span className="text-[.84rem] font-bold text-slate-600">لينك فيديو يوتيوب بتشرح فيه مشروعك بنفسك — لازم قبل الإرسال للمراجعة</span>
+        <input
+          name="video_url"
+          type="url"
+          defaultValue={project?.video_url ?? ""}
+          placeholder="https://youtube.com/..."
           dir="ltr"
           className="h-11 rounded-xl border border-border px-3 text-[.9rem] outline-none focus:border-primary"
         />
@@ -340,30 +512,46 @@ function ProjectFields({ project }: { project?: Project }) {
  * (عرض/storytelling). نفس البيانات، عرض مختلف تمامًا حسب الغرض */
 /* ------------------------------------------------------------------ */
 export function ProjectDetail({
-  project, isOwner, isAuthenticated, feedback, currentUserId,
+  project, isOwner, isMentor, isAuthenticated, feedback, currentUserId, ownerReviews, mentorReviews, viewCount, courses,
 }: {
-  project: ProjectWithOwner; isOwner: boolean; isAuthenticated: boolean; feedback: ProjectFeedback[];
-  currentUserId: string | null;
+  project: ProjectWithOwner; isOwner: boolean; isMentor: boolean; isAuthenticated: boolean; feedback: ProjectFeedback[];
+  currentUserId: string | null; ownerReviews: OwnerProjectReview[]; mentorReviews: MentorProjectReview[];
+  viewCount: number; courses: CourseOption[];
 }) {
   return isOwner
-    ? <ProjectWorkspace project={project} feedback={feedback} currentUserId={currentUserId} />
-    : <ProjectPortfolio project={project} feedback={feedback} isAuthenticated={isAuthenticated} currentUserId={currentUserId} />;
+    ? <ProjectWorkspace project={project} feedback={feedback} currentUserId={currentUserId} reviews={ownerReviews} viewCount={viewCount} courses={courses} />
+    : (
+      <ProjectPortfolio
+        project={project} feedback={feedback} isAuthenticated={isAuthenticated} currentUserId={currentUserId}
+        viewCount={viewCount} isMentor={isMentor} mentorReviews={mentorReviews}
+      />
+    );
 }
 
 /* ------------------------------------------------------------------ */
-/* ProjectWorkspace — واجهة صاحب المشروع: حالة حقيقية، آخر تحديث حقيقي،
- * checklist مبني من الحقول الموجودة فعلاً بس (مفيش "submit for review"
- * وهمية — الحالة الوحيدة الحقيقية دلوقتي draft/published) */
+/* ProjectWorkspace — واجهة صاحب المشروع. الحالة الحقيقية دلوقتي 4 مش 2:
+ * draft (بتتعدّل بحرية) -> pending_review (مقفول، مستني الليدر) ->
+ * published أو rejected. مفيش self-publish خالص — "انشره" بقت "ابعته
+ * للمراجعة"، والداتابيز نفسها بترفض لو الكورس/الفيديو/الجيت هاب فاضيين */
 /* ------------------------------------------------------------------ */
 function ProjectWorkspace({
-  project, feedback, currentUserId,
-}: { project: ProjectWithOwner; feedback: ProjectFeedback[]; currentUserId: string | null }) {
+  project, feedback, currentUserId, reviews, viewCount, courses,
+}: {
+  project: ProjectWithOwner; feedback: ProjectFeedback[]; currentUserId: string | null;
+  reviews: OwnerProjectReview[]; viewCount: number; courses: CourseOption[];
+}) {
   const router = useRouter();
+  const canEdit = project.status === "draft" || project.status === "rejected";
+  // مشروع اترفض دخل مراجعة فعلًا وعنده سجل تاريخي (project_reviews) —
+  // الداتابيز بترفض حذفه دلوقتي (on delete restrict)، فزرار الحذف بيظهر
+  // بس للـ draft عشان الطالب ميوصلش لمحاولة هترفض بـ error خام
+  const canDelete = project.status === "draft";
   const [editing, setEditing] = React.useState(false);
   const [updateState, updateAction, updatePending] = useActionState(
     updateProject.bind(null, project.id), initialState,
   );
-  const [publishPending, startPublishTransition] = React.useTransition();
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const [submitPending, startSubmitTransition] = React.useTransition();
   const [deletePending, startDeleteTransition] = React.useTransition();
 
   const wasPending = React.useRef(false);
@@ -372,10 +560,12 @@ function ProjectWorkspace({
     wasPending.current = updatePending;
   }, [updatePending, updateState.error]);
 
-  const handlePublishToggle = () => {
-    startPublishTransition(async () => {
-      await setProjectStatus(project.id, project.status === "published" ? "draft" : "published");
-      router.refresh();
+  const handleSubmitForReview = () => {
+    setSubmitError(null);
+    startSubmitTransition(async () => {
+      const res = await submitProjectForReview(project.id);
+      if (res.error) setSubmitError(res.error);
+      else router.refresh();
     });
   };
 
@@ -390,11 +580,20 @@ function ProjectWorkspace({
   const checklist = [
     { label: "عنوان المشروع", done: project.title.trim().length > 0 },
     { label: "وصف المشروع", done: project.description.trim().length > 0 },
-    { label: "المهارات المستخدمة", done: project.skills.length > 0 },
-    { label: "لينك المشروع", done: !!project.project_link },
+    { label: "الكورس", done: !!project.course_id },
+    { label: "لينك الجيت هاب", done: !!project.github_url },
+    { label: "فيديو الشرح", done: !!project.video_url },
   ];
   const readyCount = checklist.filter((c) => c.done).length;
   const lastUpdated = new Date(project.updated_at).toLocaleDateString("ar-EG", { day: "numeric", month: "long" });
+  const latestReview = reviews[0] ?? null;
+
+  const statusTone: Record<Project["status"], string> = {
+    draft: "bg-gold-50 text-gold-600",
+    pending_review: "bg-blue-tint text-primary",
+    published: "bg-green-50 text-green",
+    rejected: "bg-destructive/10 text-destructive",
+  };
 
   return (
     <div className="flex flex-col gap-5">
@@ -405,45 +604,68 @@ function ProjectWorkspace({
 
         <div className="flex flex-col gap-4 p-[28px]">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[.8rem] font-bold text-slate-500">
-            <span className={cn(
-              "rounded-full px-2.5 py-1",
-              project.status === "published" ? "bg-green-50 text-green" : "bg-gold-50 text-gold-600",
-            )}>
-              {project.status === "published" ? "منشور 🌍" : "مسودّة 🔒"}
-            </span>
-            <span>· {project.status === "published" ? "عام — أي حد يقدر يشوفه" : "خاص — إنت بس اللي شايفه"}</span>
+            <span className={cn("rounded-full px-2.5 py-1", statusTone[project.status])}>{STATUS_LABEL[project.status]}</span>
+            {project.status === "published" && (
+              <span className="flex items-center gap-1">· <Eye className="h-3.5 w-3.5" /> {viewCount} مشاهدة</span>
+            )}
             <span>· آخر تحديث {lastUpdated}</span>
           </div>
+
+          {project.status === "rejected" && latestReview && (
+            <div className="flex items-start gap-2 rounded-2xl border border-destructive/25 bg-destructive/5 p-4 text-[.85rem] text-destructive">
+              <X className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <p className="font-extrabold">الفريق رفض المشروع في المراجعة دي</p>
+                {latestReview.reviewer_note && <p className="mt-1">{latestReview.reviewer_note}</p>}
+                <p className="mt-1 text-[.78rem] text-destructive/70">عدّل مشروعك وابعته للمراجعة تاني من غير حد أقصى لعدد المرات.</p>
+              </div>
+            </div>
+          )}
+
+          {project.status === "pending_review" && (
+            <div className="flex items-start gap-2 rounded-2xl border border-primary/20 bg-blue-tint p-4 text-[.85rem] text-primary">
+              <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>مشروعك مقفول من التعديل دلوقتي — مستني قرار فريق COCR.</p>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-start justify-between gap-3">
             {!editing && <h1 className="text-[clamp(1.4rem,3vw,1.9rem)] font-extrabold leading-tight">{project.title}</h1>}
             <div className="flex gap-2">
-              <button
-                onClick={() => setEditing((v) => !v)}
-                className="flex items-center gap-1 rounded-lg border border-border bg-white px-3 py-1.5 text-[.8rem] font-bold text-slate-600"
-              >
-                <Pencil className="h-3.5 w-3.5" /> {editing ? "إلغاء" : "تعديل"}
-              </button>
-              <button
-                onClick={handlePublishToggle}
-                disabled={publishPending}
-                className="rounded-lg bg-primary px-3 py-1.5 text-[.8rem] font-bold text-white disabled:opacity-60"
-              >
-                {publishPending ? "لحظة..." : project.status === "published" ? "رجّعه مسودّة" : "انشره"}
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deletePending}
-                className="flex items-center gap-1 rounded-lg border border-destructive/30 bg-white px-3 py-1.5 text-[.8rem] font-bold text-destructive disabled:opacity-60"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> احذف
-              </button>
+              {canEdit && (
+                <button
+                  onClick={() => setEditing((v) => !v)}
+                  className="flex items-center gap-1 rounded-lg border border-border bg-white px-3 py-1.5 text-[.8rem] font-bold text-slate-600"
+                >
+                  <Pencil className="h-3.5 w-3.5" /> {editing ? "إلغاء" : "تعديل"}
+                </button>
+              )}
+              {canEdit && !editing && (
+                <button
+                  onClick={handleSubmitForReview}
+                  disabled={submitPending || readyCount < checklist.length}
+                  title={readyCount < checklist.length ? "كمّل البيانات الناقصة الأول" : undefined}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-[.8rem] font-bold text-white disabled:opacity-40"
+                >
+                  {submitPending ? "لحظة..." : "ابعته للمراجعة"}
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  onClick={handleDelete}
+                  disabled={deletePending}
+                  className="flex items-center gap-1 rounded-lg border border-destructive/30 bg-white px-3 py-1.5 text-[.8rem] font-bold text-destructive disabled:opacity-60"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> احذف
+                </button>
+              )}
             </div>
           </div>
+          {submitError && <p className="text-[.82rem] font-semibold text-destructive">{submitError}</p>}
 
           {editing ? (
             <form action={updateAction} className="flex flex-col gap-4">
-              <ProjectFields project={project} />
+              <ProjectFields project={project} courses={courses} />
               {updateState.error && <p className="text-[.85rem] font-semibold text-destructive">{updateState.error}</p>}
               <button
                 type="submit"
@@ -465,25 +687,32 @@ function ProjectWorkspace({
                   ))}
                 </div>
               )}
-              {project.project_link && (
-                <Link
-                  href={project.project_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex w-fit items-center gap-2 rounded-xl border border-border px-4 py-2 text-[.88rem] font-bold text-primary"
-                >
-                  شوف المشروع <ExternalLink className="h-3.5 w-3.5" />
-                </Link>
-              )}
+              <div className="flex flex-wrap gap-2" dir="ltr">
+                {project.project_link && (
+                  <Link href={project.project_link} target="_blank" rel="noopener noreferrer" className="flex w-fit items-center gap-2 rounded-xl border border-border px-4 py-2 text-[.88rem] font-bold text-primary">
+                    Demo <ExternalLink className="h-3.5 w-3.5" />
+                  </Link>
+                )}
+                {project.github_url && (
+                  <Link href={project.github_url} target="_blank" rel="noopener noreferrer" className="flex w-fit items-center gap-2 rounded-xl border border-border px-4 py-2 text-[.88rem] font-bold text-slate-600">
+                    <CodeXml className="h-3.5 w-3.5" /> GitHub
+                  </Link>
+                )}
+                {project.video_url && (
+                  <Link href={project.video_url} target="_blank" rel="noopener noreferrer" className="flex w-fit items-center gap-2 rounded-xl border border-border px-4 py-2 text-[.88rem] font-bold text-slate-600">
+                    <Video className="h-3.5 w-3.5" /> الفيديو
+                  </Link>
+                )}
+              </div>
             </>
           )}
         </div>
       </div>
 
-      {!editing && (
+      {!editing && canEdit && (
         <div className="rounded-2xl border border-dashed border-border bg-white p-5">
           <p className="mb-3 text-[.85rem] font-extrabold text-slate-600">
-            {readyCount === checklist.length ? "المشروع جاهز 🎉" : `المشروع جاهز (${readyCount}/${checklist.length})`}
+            {readyCount === checklist.length ? "المشروع جاهز للمراجعة 🎉" : `جاهز للإرسال (${readyCount}/${checklist.length})`}
           </p>
           <div className="flex flex-col gap-1.5">
             {checklist.map((c) => (
@@ -506,10 +735,25 @@ function ProjectWorkspace({
  * workspace. مفيش أي حاجة خاصة (حالة المشروع، أزرار تعديل) بتظهر هنا —
  * أصلاً RLS مش بترجّع مسودّات لغير صاحبها، فالصفحة دي منشور بس */
 /* ------------------------------------------------------------------ */
+// شارة الصفحة العامة — الصفحة دي بقت ممكن يفتحها مش بس زائر عام (مشروع
+// منشور دايمًا)، لكن كمان منتور بيشوف مشروع طالبه وهو لسه pending_review
+// أو rejected (بعد إضافة صلاحية SELECT للمنتور). لازم الشارة تعكس الحالة
+// الحقيقية — عرض "موثّق" على مشروع لسه مايتوافقش عليه بيضرب مصداقية
+// الـ Verified Graduation Project اللي الصفحة دي أصلًا مبنية عليها
+const PORTFOLIO_BADGE: Partial<Record<Project["status"], { label: string; className: string }>> = {
+  pending_review: { label: "قيد المراجعة", className: "bg-blue-tint text-primary" },
+  rejected: { label: "محتاج تعديل", className: "bg-destructive/10 text-destructive" },
+  published: { label: "مشروع تخرّج موثّق", className: "bg-green-50 text-green" },
+};
+
 function ProjectPortfolio({
-  project, feedback, isAuthenticated, currentUserId,
-}: { project: ProjectWithOwner; feedback: ProjectFeedback[]; isAuthenticated: boolean; currentUserId: string | null }) {
+  project, feedback, isAuthenticated, currentUserId, viewCount, isMentor, mentorReviews,
+}: {
+  project: ProjectWithOwner; feedback: ProjectFeedback[]; isAuthenticated: boolean; currentUserId: string | null;
+  viewCount: number; isMentor: boolean; mentorReviews: MentorProjectReview[];
+}) {
   const ownerInitial = (project.owner?.display_name ?? "ط").trim().charAt(0).toUpperCase();
+  const badge = PORTFOLIO_BADGE[project.status];
   return (
     <div className="flex flex-col gap-8">
       <div className="overflow-hidden rounded-3xl border border-border bg-white">
@@ -520,27 +764,47 @@ function ProjectPortfolio({
         <div className="flex flex-col gap-6 p-[32px]">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h1 className="text-[clamp(1.6rem,3.4vw,2.3rem)] font-extrabold leading-tight">{project.title}</h1>
-              <p className="mt-2.5 flex items-center gap-2 text-[.92rem] text-muted-foreground">
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-sand text-[.7rem] font-extrabold text-slate-600">
-                  {ownerInitial}
+              {badge && (
+                <span className={cn("mb-2 flex w-fit items-center gap-1.5 rounded-full px-3 py-1 text-[.76rem] font-extrabold", badge.className)}>
+                  <ShieldCheck className="h-3.5 w-3.5" /> {badge.label}
                 </span>
-                بناه <b className="font-extrabold text-foreground">{project.owner?.display_name ?? "طالب COCR"}</b>
+              )}
+              <h1 className="text-[clamp(1.6rem,3.4vw,2.3rem)] font-extrabold leading-tight">{project.title}</h1>
+              <p className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[.92rem] text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-sand text-[.7rem] font-extrabold text-slate-600">
+                    {ownerInitial}
+                  </span>
+                  بناه <b className="font-extrabold text-foreground">{project.owner?.display_name ?? "طالب COCR"}</b>
+                </span>
+                <span className="flex items-center gap-1.5"><Eye className="h-4 w-4" /> {viewCount} مشاهدة</span>
               </p>
             </div>
             {isAuthenticated && <ReportButton targetType="project" targetId={project.id} compact />}
           </div>
 
-          {project.project_link && (
-            <Link
-              href={project.project_link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex w-fit items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-[.9rem] font-extrabold text-white transition-transform hover:-translate-y-0.5"
-            >
-              افتح المشروع <ExternalLink className="h-4 w-4" />
-            </Link>
-          )}
+          <div className="flex flex-wrap gap-2" dir="ltr">
+            {project.project_link && (
+              <Link
+                href={project.project_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-fit items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-[.9rem] font-extrabold text-white transition-transform hover:-translate-y-0.5"
+              >
+                افتح المشروع <ExternalLink className="h-4 w-4" />
+              </Link>
+            )}
+            {project.github_url && (
+              <Link href={project.github_url} target="_blank" rel="noopener noreferrer" className="flex w-fit items-center gap-2 rounded-xl border border-border px-5 py-2.5 text-[.9rem] font-extrabold text-slate-600">
+                <CodeXml className="h-4 w-4" /> GitHub
+              </Link>
+            )}
+            {project.video_url && (
+              <Link href={project.video_url} target="_blank" rel="noopener noreferrer" className="flex w-fit items-center gap-2 rounded-xl border border-border px-5 py-2.5 text-[.9rem] font-extrabold text-slate-600">
+                <Video className="h-4 w-4" /> شاهد الفيديو
+              </Link>
+            )}
+          </div>
 
           <div className="border-t border-dashed border-border pt-6">
             <h2 className="mb-2.5 text-[.78rem] font-extrabold tracking-[.1em] text-gold-600">عن المشروع</h2>
@@ -557,6 +821,17 @@ function ProjectPortfolio({
                   <span key={s} className="rounded-full border border-border px-3 py-1 text-[.8rem] font-bold text-slate-600">{s}</span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {isMentor && (
+            <div className="border-t border-dashed border-border pt-6">
+              <h2 className="mb-2.5 text-[.78rem] font-extrabold tracking-[.1em] text-gold-600">تقييم فريق COCR لأدائك كمنتور في المشروع ده</h2>
+              {mentorReviews.length === 0 || mentorReviews[0].mentor_score == null ? (
+                <p className="text-[.85rem] text-muted-foreground">لسه مفيش تقييم متسجّل.</p>
+              ) : (
+                <p className="text-[.9rem] font-bold text-foreground">{mentorReviews[0].mentor_score} / 5</p>
+              )}
             </div>
           )}
         </div>

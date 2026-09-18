@@ -210,9 +210,13 @@ export function DashboardClient({
                   <span className={
                     p.status === "published"
                       ? "rounded-full bg-green-50 px-2.5 py-1 text-[.68rem] font-bold text-green"
-                      : "rounded-full bg-muted px-2.5 py-1 text-[.68rem] font-bold text-muted-foreground"
+                      : p.status === "pending_review"
+                        ? "rounded-full bg-blue-tint px-2.5 py-1 text-[.68rem] font-bold text-primary"
+                        : p.status === "rejected"
+                          ? "rounded-full bg-destructive/10 px-2.5 py-1 text-[.68rem] font-bold text-destructive"
+                          : "rounded-full bg-muted px-2.5 py-1 text-[.68rem] font-bold text-muted-foreground"
                   }>
-                    {p.status === "published" ? "منشور" : "مسودّة"}
+                    {p.status === "published" ? "منشور" : p.status === "pending_review" ? "مستنية مراجعة" : p.status === "rejected" ? "محتاج تعديل" : "مسودّة"}
                   </span>
                 </div>
                 <p className="text-[.92rem] font-extrabold leading-snug">{p.title}</p>

@@ -19,7 +19,7 @@ async function fetchDisplayNames(
   return Object.fromEntries((data ?? []).map((p) => [p.id, p.display_name]));
 }
 
-export type ProjectStatus = "draft" | "published";
+export type ProjectStatus = "draft" | "pending_review" | "published" | "rejected";
 
 export interface Project {
   id: string;
@@ -28,6 +28,10 @@ export interface Project {
   description: string;
   skills: string[];
   project_link: string | null;
+  github_url: string | null;
+  video_url: string | null;
+  course_id: string | null;
+  mentor_id: string | null;
   status: ProjectStatus;
   created_at: string;
   updated_at: string;
@@ -35,6 +39,25 @@ export interface Project {
 
 export interface ProjectWithOwner extends Project {
   owner: { display_name: string | null } | null;
+}
+
+/** سجل مراجعة واحد زي ما بيشوفه صاحب المشروع — سبب/قرار بس، من غير أي
+ * درجة رقمية (student_score/mentor_score محجوبين عنه في الداتابيز نفسها
+ * عن طريق project_reviews_for_owner، مش بس إخفاء في الواجهة) */
+export interface OwnerProjectReview {
+  id: string;
+  project_id: string;
+  decision: "approved" | "rejected";
+  reviewer_note: string | null;
+  created_at: string;
+}
+
+/** زي ما بيشوفه المنتور — درجته هو بس (مش درجة الطالب) */
+export interface MentorProjectReview {
+  id: string;
+  project_id: string;
+  mentor_score: number | null;
+  created_at: string;
 }
 
 export interface ProjectFeedback {
@@ -50,8 +73,13 @@ export interface ProjectActionResult {
   error: string | null;
 }
 
-/** كل المشاريع المنشورة — للزوار والمستخدمين، صفحة /projects */
-export async function getPublishedProjects(): Promise<ProjectWithOwner[]> {
+/** كل المشاريع المنشورة (= موثّقة من الليدر فعليًا) — للزوار والمستخدمين،
+ * صفحة /projects. search بيدوّر في العنوان/الوصف/المهارات/اسم صاحب
+ * المشروع — بعد الـ join بالاسم، عشان مفيش عمود اسم على projects نفسها.
+ * الحجم المتوقع هنا (مشاريع تخرّج، مش سوق عام) صغير بما يكفي إن الفلترة
+ * في الكود تبقى كافية ومظبوطة، بدل استعلامين متوازيين ممكن يغلطوا في مين
+ * اتفلتر ومين لأ */
+export async function getPublishedProjects(search?: string): Promise<ProjectWithOwner[]> {
   const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
   const { data } = await supabase
@@ -62,7 +90,16 @@ export async function getPublishedProjects(): Promise<ProjectWithOwner[]> {
 
   const projects = (data as Project[] | null) ?? [];
   const names = await fetchDisplayNames(supabase, projects.map((p) => p.owner_id));
-  return projects.map((p) => ({ ...p, owner: { display_name: names[p.owner_id] ?? null } }));
+  const withOwner = projects.map((p) => ({ ...p, owner: { display_name: names[p.owner_id] ?? null } }));
+
+  const q = search?.trim().toLowerCase().slice(0, 100);
+  if (!q) return withOwner;
+
+  return withOwner.filter((p) =>
+    p.title.toLowerCase().includes(q)
+    || p.description.toLowerCase().includes(q)
+    || p.skills.some((s) => s.toLowerCase().includes(q))
+    || (p.owner?.display_name ?? "").toLowerCase().includes(q));
 }
 
 /** مشروع واحد — بيرجع null لو مش موجود أو مش متاح للمستخدم الحالي (RLS) */
@@ -97,28 +134,35 @@ export async function getMyProjects(): Promise<Project[]> {
   return (data as Project[] | null) ?? [];
 }
 
+function parseUrl(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol === "http:" || url.protocol === "https:") return url.toString();
+  } catch {
+    /* لينك غير صالح — يتجاهل بدل ما يكسر الحفظ */
+  }
+  return null;
+}
+
 function parseProjectForm(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim().slice(0, 120);
   const description = String(formData.get("description") ?? "").trim().slice(0, 2000);
   const skillsRaw = String(formData.get("skills") ?? "");
   const skills = skillsRaw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 12);
-  const linkRaw = String(formData.get("project_link") ?? "").trim();
-  let project_link: string | null = null;
-  if (linkRaw) {
-    try {
-      const url = new URL(linkRaw);
-      if (url.protocol === "http:" || url.protocol === "https:") project_link = url.toString();
-    } catch {
-      /* لينك غير صالح — يتجاهل بدل ما يكسر الحفظ */
-    }
-  }
-  return { title, description, skills, project_link };
+  const project_link = parseUrl(String(formData.get("project_link") ?? ""));
+  const github_url = parseUrl(String(formData.get("github_url") ?? ""));
+  const video_url = parseUrl(String(formData.get("video_url") ?? ""));
+  const courseRaw = String(formData.get("course_id") ?? "").trim();
+  const course_id = courseRaw || null;
+  return { title, description, skills, project_link, github_url, video_url, course_id };
 }
 
 export async function createProject(
   _prev: ProjectActionResult, formData: FormData,
 ): Promise<ProjectActionResult> {
-  const { title, description, skills, project_link } = parseProjectForm(formData);
+  const { title, description, skills, project_link, github_url, video_url, course_id } = parseProjectForm(formData);
   if (title.length < 3) return { error: "اكتب عنوان للمشروع (3 حروف على الأقل)." };
 
   const cookieStore = await cookies();
@@ -128,7 +172,10 @@ export async function createProject(
 
   const { data, error } = await supabase
     .from("projects")
-    .insert({ owner_id: user.id, title, description, skills, project_link, status: "draft" })
+    .insert({
+      owner_id: user.id, title, description, skills, project_link, github_url, video_url, course_id,
+      status: "draft",
+    })
     .select("id")
     .single();
 
@@ -143,7 +190,7 @@ export async function createProject(
 export async function updateProject(
   projectId: string, _prev: ProjectActionResult, formData: FormData,
 ): Promise<ProjectActionResult> {
-  const { title, description, skills, project_link } = parseProjectForm(formData);
+  const { title, description, skills, project_link, github_url, video_url, course_id } = parseProjectForm(formData);
   if (title.length < 3) return { error: "اكتب عنوان للمشروع (3 حروف على الأقل)." };
 
   const cookieStore = await cookies();
@@ -151,13 +198,18 @@ export async function updateProject(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "لازم تسجّل دخولك الأول." };
 
+  // RLS بترفض التعديل لو المشروع مش draft/rejected دلوقتي (pending_review
+  // أو published مقفولين من التعديل، حتى لصاحبهم)
   const { error } = await supabase
     .from("projects")
-    .update({ title, description, skills, project_link, updated_at: new Date().toISOString() })
+    .update({
+      title, description, skills, project_link, github_url, video_url, course_id,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", projectId)
     .eq("owner_id", user.id);
 
-  if (error) return { error: "حصل خطأ، جرّب تاني بعد شوية." };
+  if (error) return { error: "حصل خطأ في الحفظ — المشروع ده ممكن يكون قفل من التعديل دلوقتي (مستني مراجعة أو منشور بالفعل)." };
 
   revalidatePath("/projects");
   revalidatePath(`/projects/${projectId}`);
@@ -165,25 +217,35 @@ export async function updateProject(
   return { error: null };
 }
 
-export async function setProjectStatus(projectId: string, status: ProjectStatus): Promise<{ ok: boolean }> {
+/** إرسال المشروع للمراجعة — الطريق الوحيد اللي المشروع بيتنشر بيه دلوقتي،
+ * مفيش self-publish خالص. الداتابيز نفسها (CHECK constraint) بترفض الإرسال
+ * لو الكورس أو لينك الفيديو أو الجيت هاب فاضيين — الأدلة دي جزء من التحقق
+ * البشري نفسه، مش تفاصيل شكلية */
+export async function submitProjectForReview(projectId: string): Promise<{ error: string | null }> {
   const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false };
+  if (!user) return { error: "لازم تسجّلي دخولك الأول." };
 
   const { error } = await supabase
     .from("projects")
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status: "pending_review", updated_at: new Date().toISOString() })
     .eq("id", projectId)
     .eq("owner_id", user.id);
 
-  if (error) return { ok: false };
+  if (error) {
+    // 23514 = check_violation — غالبًا الكورس/الفيديو/الجيت هاب فاضيين
+    if (error.code === "23514") {
+      return { error: "لازم تحددي الكورس، ولينك الفيديو، ولينك الجيت هاب قبل ما ترسلي المشروع للمراجعة." };
+    }
+    return { error: "حصل خطأ، جرّب تاني بعد شوية." };
+  }
 
   revalidatePath("/projects");
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/dashboard");
   revalidatePath("/profile");
-  return { ok: true };
+  return { error: null };
 }
 
 export async function deleteProject(projectId: string): Promise<{ ok: boolean }> {
@@ -192,6 +254,8 @@ export async function deleteProject(projectId: string): Promise<{ ok: boolean }>
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false };
 
+  // RLS بترفض الحذف لو المشروع pending_review/published — التوثيق مرتبط
+  // بمصداقية شهادة الطالب، مش حاجة تتمسح وهي فعّالة
   const { error } = await supabase
     .from("projects")
     .delete()
@@ -322,4 +386,65 @@ export async function deleteFeedback(feedbackId: string, projectId: string): Pro
   if (error) return { ok: false };
   revalidatePath(`/projects/${projectId}`);
   return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/* مراجعة الليدر — قراءة بس من هنا (صاحب المشروع/المنتور). الكتابة الفعلية
+ * (موافقة/رفض) في admin_actions.ts زي باقي شاشات الأدمن */
+/* ------------------------------------------------------------------ */
+
+/** سجل المراجعات اللي صاحب المشروع يقدر يشوفه — من project_reviews_for_owner
+ * (view ضيّق، مفيش فيه أي درجة رقمية أصلًا، مش بس مخفية في الواجهة) */
+export async function getProjectReviewsForOwner(projectId: string): Promise<OwnerProjectReview[]> {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const { data } = await supabase
+    .from("project_reviews_for_owner")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false });
+
+  return (data as OwnerProjectReview[] | null) ?? [];
+}
+
+/** تقييم المنتور لأدائه هو بس على المشروع ده — من project_reviews_for_mentor */
+export async function getProjectReviewsForMentor(projectId: string): Promise<MentorProjectReview[]> {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const { data } = await supabase
+    .from("project_reviews_for_mentor")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false });
+
+  return (data as MentorProjectReview[] | null) ?? [];
+}
+
+/* ------------------------------------------------------------------ */
+/* عداد المشاهدات — حقيقي، deduplicated (unique constraint في الداتابيز،
+ * مش عدّاد مخزّن ممكن يغلط) */
+/* ------------------------------------------------------------------ */
+
+/** بتتسجّل مرة واحدة بس لكل زائر مسجّل دخول لكل مشروع — على conflict
+ * بتتجاهل بهدوء (مش خطأ حقيقي، ده بالظبط المطلوب من الـ dedup) */
+export async function recordProjectView(projectId: string): Promise<void> {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase
+    .from("project_views")
+    .upsert({ project_id: projectId, viewer_id: user.id }, { onConflict: "project_id,viewer_id", ignoreDuplicates: true });
+}
+
+export async function getProjectViewCount(projectId: string): Promise<number> {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const { count } = await supabase
+    .from("project_views")
+    .select("id", { count: "exact", head: true })
+    .eq("project_id", projectId);
+
+  return count ?? 0;
 }

@@ -563,7 +563,7 @@ export async function CoursesSection() {
 /* ================================================================== */
 /*  08 — المشاريع                                                      */
 /* ================================================================== */
-const PROJECT_TONE = { acc: "#1E45C4", bg: "#EEF2FE", icon: "build" } as const;
+const PROJECT_TONE = { fg: "#1E7A4E", bg: "#EAF6EF", bar: "#FAFBFF", icon: "build" } as const;
 
 export async function ProjectsSection() {
   const projects = (await getPublishedProjects()).slice(0, 3);
@@ -585,7 +585,7 @@ export async function ProjectsSection() {
                 <div className="relative overflow-hidden px-6 pb-5 pt-6" style={{ background: t.bg }}>
                   <Icon3D name={t.icon} className="relative z-[2] h-14 w-14 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105" />
                 </div>
-                <span className="h-[4px]" style={{ background: t.acc }} />
+                <span className="h-[4px]" style={{ background: t.bar }} />
 
                 <div className="flex flex-1 flex-col px-6 pb-6 pt-5">
                   <h3 className="mb-1.5 text-[1.1rem] font-extrabold leading-snug">{p.title}</h3>
@@ -594,7 +594,7 @@ export async function ProjectsSection() {
                   {p.skills.length > 0 && (
                     <div className="mb-4 flex flex-wrap gap-1.5">
                       {p.skills.slice(0, 3).map((s) => (
-                        <span key={s} className="rounded-full px-2.5 py-1 text-[.72rem] font-bold" style={{ background: t.bg, color: t.acc }}>
+                        <span key={s} className="rounded-full px-2.5 py-1 text-[.72rem] font-bold" style={{ background: t.bg, color: t.fg }}>
                           {s}
                         </span>
                       ))}
@@ -603,12 +603,12 @@ export async function ProjectsSection() {
 
                   <div className="mt-auto flex items-center justify-between border-t border-border pt-4">
                     <div className="flex items-center gap-2">
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[.72rem] font-extrabold text-white" style={{ background: t.acc }}>
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[.72rem] font-extrabold text-white" style={{ background: t.fg }}>
                         {ownerName.slice(0, 1)}
                       </span>
                       <span className="text-[.8rem] font-bold text-slate-600">{ownerName}</span>
                     </div>
-                    <ArrowLeft className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-x-1" style={{ color: t.acc }} />
+                    <ArrowLeft className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-x-1" style={{ color: t.fg }} />
                   </div>
                 </div>
               </Link>

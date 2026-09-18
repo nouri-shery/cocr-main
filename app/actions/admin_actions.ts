@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import type { ProjectWithOwner } from "./projects_actions";
 
 export interface MentorApplication {
   id: string;
@@ -67,6 +68,7 @@ export interface ModerationLogEntry {
 
 const MENTOR_APPLICATION_PERMISSION = "mentor_application_review";
 const SAFETY_REPORT_PERMISSION = "safety_report_access";
+const PROJECT_REVIEW_PERMISSION = "project_review";
 
 /** أسماء العرض بتتجاب من profiles_public (view ضيّق id+display_name بس)،
  * مش embed مباشر عن طريق profiles — RLS بتاعة profiles بقت مقصورة على
@@ -117,6 +119,12 @@ async function canAccessReports(
   return (await isSuperAdmin(supabase, userId)) || (await hasPermission(supabase, userId, SAFETY_REPORT_PERMISSION));
 }
 
+async function canReviewProjects(
+  supabase: Awaited<ReturnType<typeof createClient>>, userId: string,
+): Promise<boolean> {
+  return (await isSuperAdmin(supabase, userId)) || (await hasPermission(supabase, userId, PROJECT_REVIEW_PERMISSION));
+}
+
 /** بترجّع true لو المستخدم الحالي عنده أي صلاحية أدمن هنا — بيتستخدم بس
  * عشان نفتح/نقفل شل لوحة /admin، كل صفحة جواها بتعمل فحصها الدقيق لوحدها */
 export async function isCurrentUserStaff(): Promise<boolean> {
@@ -127,6 +135,7 @@ export async function isCurrentUserStaff(): Promise<boolean> {
   if (await isSuperAdmin(supabase, userId)) return true;
   if (await hasPermission(supabase, userId, MENTOR_APPLICATION_PERMISSION)) return true;
   if (await hasPermission(supabase, userId, SAFETY_REPORT_PERMISSION)) return true;
+  if (await hasPermission(supabase, userId, PROJECT_REVIEW_PERMISSION)) return true;
   return false;
 }
 
@@ -326,6 +335,75 @@ export async function resolveDeletionRequest(
   if (error) return { error: "حصل خطأ، جرّب تاني بعد شوية." };
   await logModeration(supabase, userId, `deletion_request_${status}`, "account_deletion_request", id, null);
   revalidatePath("/admin/deletion-requests");
+  return { error: null };
+}
+
+/* ------------------------------------------------------------------ */
+/* مراجعة مشاريع التخرّج — صلاحية project_review منفصلة، نفس باترن باقي
+ * شاشات الأدمن (mentor applications / course proposals / reports) */
+/* ------------------------------------------------------------------ */
+
+/** كل المشاريع اللي مستنية قرار الليدر دلوقتي */
+export async function listPendingProjectReviews(): Promise<ProjectWithOwner[]> {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const userId = await currentUserId(supabase);
+  if (!userId || !(await canReviewProjects(supabase, userId))) return [];
+
+  const { data } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("status", "pending_review")
+    .order("updated_at", { ascending: true });
+
+  const projects = (data as ProjectWithOwner[] | null) ?? [];
+  const names = await fetchDisplayNames(supabase, projects.map((p) => p.owner_id));
+  return projects.map((p) => ({ ...p, owner: { display_name: names[p.owner_id] ?? null } }));
+}
+
+export interface ProjectReviewDecisionInput {
+  decision: "approved" | "rejected";
+  reviewerNote: string;
+  studentScore?: number | null;
+  mentorScore?: number | null;
+  /** fallback يدوي — بس لو الداتابيز معرفتش تحدد منتور واضح وحيد وقت
+   * الإرسال (mentor_ratings كانت فاضية أو فيها أكتر من منتور محتمل) */
+  mentorId?: string | null;
+}
+
+/** موافقة/رفض مشروع — بينادي submit_project_review في الداتابيز، اللي
+ * بتعمل insert في project_reviews + update على projects في transaction
+ * واحدة (مستحيل يبقى فيه سجل مراجعة من غير ما الحالة تتحدّث). الدالة دي
+ * نفسها مجرد RLS-checked RPC call — الحماية الحقيقية في الداتابيز، مش هنا */
+export async function reviewProject(
+  projectId: string, input: ProjectReviewDecisionInput,
+): Promise<{ error: string | null }> {
+  const trimmedNote = input.reviewerNote.trim().slice(0, 2000);
+  if (input.decision === "rejected" && trimmedNote.length < 3) {
+    return { error: "لازم تكتبي سبب الرفض عشان الطالب يعرف يحسّن مشروعه." };
+  }
+
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const userId = await currentUserId(supabase);
+  if (!userId) return { error: "لازم تسجّلي دخولك." };
+  if (!(await canReviewProjects(supabase, userId))) return { error: "الإجراء ده لفريق COCR بس." };
+
+  const { error } = await supabase.rpc("submit_project_review", {
+    p_project_id: projectId,
+    p_decision: input.decision,
+    p_reviewer_note: trimmedNote || null,
+    p_student_score: input.studentScore ?? null,
+    p_mentor_score: input.mentorScore ?? null,
+    p_mentor_id: input.mentorId ?? null,
+  });
+
+  if (error) return { error: "حصل خطأ، جرّب تاني بعد شوية." };
+
+  await logModeration(supabase, userId, `project_${input.decision}`, "project", projectId, trimmedNote || null);
+  revalidatePath("/admin/projects");
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${projectId}`);
   return { error: null };
 }
 

@@ -398,7 +398,9 @@ export function ProfileClient({
                     <Icon3D name="hammer" className="h-8 w-8" />
                     <div className="flex-1">
                       <p className="text-[.88rem] font-extrabold">{p.title}</p>
-                      <p className="text-[.76rem] text-muted-foreground">{p.status === "published" ? "منشور" : "مسودّة"}</p>
+                      <p className="text-[.76rem] text-muted-foreground">
+                        {p.status === "published" ? "منشور" : p.status === "pending_review" ? "مستنية مراجعة" : p.status === "rejected" ? "محتاج تعديل" : "مسودّة"}
+                      </p>
                     </div>
                   </Link>
                 ))}

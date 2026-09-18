@@ -16,7 +16,7 @@ export function Section({
   id, children, tone = "plain", pattern, className,
 }: {
   id?: string; children: React.ReactNode;
-  tone?: "plain" | "sand" | "blue" | "dark" | "beige";
+  tone?: "plain" | "sand" | "blue" | "dark" | "beige" | "green";
   pattern?: "dots" | "grid" | "diag" | "glow";
   className?: string;
 }) {
@@ -27,9 +27,10 @@ export function Section({
       tone === "blue" && "bg-blue-tint",
       tone === "dark" && "bg-[#14161C] text-white",
       tone === "beige" && "bg-beige",
+      tone === "green" && "bg-green text-white",
       className,
     )}>
-      {pattern && <span aria-hidden className={cn("pointer-events-none absolute inset-0 z-[1]", `pattern-${pattern}`, tone === "dark" && "pattern-on-dark")} />}
+      {pattern && <span aria-hidden className={cn("pointer-events-none absolute inset-0 z-[1]", `pattern-${pattern}`, (tone === "dark" || tone === "green") && "pattern-on-dark")} />}
       <div className="relative z-[2] mx-auto max-w-[1160px] px-7">{children}</div>
     </section>
   );
@@ -570,11 +571,11 @@ export async function ProjectsSection() {
   if (projects.length === 0) return null;
 
   return (
-    <Section id="projects" tone="beige" pattern="diag">
+    <Section id="projects" tone="green" pattern="diag">
       <span aria-hidden className="animate-soft-pulse pointer-events-none absolute -start-12 -bottom-12 z-0">
         <Icon3D name="build" className="h-44 w-44" />
       </span>
-      <SectionHead num="08" label="المشاريع" title="النتيجة مش شهادة — النتيجة حاجة بنيتها" />
+      <SectionHead num="08" label="المشاريع" title="النتيجة مش شهادة — النتيجة حاجة بنيتها" numClassName="text-white" />
       <div className="grid gap-6 lg:grid-cols-3">
         {projects.map((p, i) => {
           const t = PROJECT_TONE;
@@ -617,7 +618,7 @@ export async function ProjectsSection() {
         })}
       </div>
       <Reveal delay={200} className="mt-9">
-        <Link href="/projects" className="group inline-flex items-center gap-2 text-[.94rem] font-bold text-primary">
+        <Link href="/projects" className="group inline-flex items-center gap-2 text-[.94rem] font-bold text-white">
           استكشف كل المشاريع <ArrowLeft className="h-[18px] w-[18px] transition-transform group-hover:-translate-x-1" />
         </Link>
       </Reveal>

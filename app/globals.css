@@ -39,13 +39,9 @@
      bg-sugar-white صراحة متتلمسش */
   --color-sugar-white: #FAFBFF;
 
-  /* توكنز خلفيات السكاشن — كل واحد لوحده غني/مشبع شوية أكتر من sand/blue-tint
-     القدام (اللي كانوا قريبين من بعض جدًا فطلعوا بلا روح)، لسه سوفت بس
-     مبينين بوضوح عن بعض وعن الأبيض السكري الأساسي */
-  --color-lilac: #EAE1F7;
-  --color-mist: #DCE9FA;
-  --color-sage: #DEEFE4;
-  --color-clay: #FBE3D6;
+  /* بيج دافئ إضافي — لسه مش مستخدم في أي مكان، جاهز نجربه في صفحة واحدة
+     بس زي ما طلبتِ، من غير ما يتفرض على باقي المنصة */
+  --color-beige: #FBF3D9;
 
   --color-slate-300: #CFC9BD;
   --color-slate-400: #A6A199;
@@ -89,17 +85,6 @@
   background-size: 46px 46px;
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
   mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
-}
-
-/* بدائل النقط القديمة — بقع لون عضوية ناعمة (مش شبكة نقط منتظمة حسّاها
-   الاستخدام "زي حاجات البيبي") لقسمين بس (الرحلة والنمو)؛ باقي أماكن
-   النقط الأصلية سابينها زي ما هي بالظبط */
-@utility pattern-blobs {
-  background-image:
-    radial-gradient(circle at 12% 18%, rgba(30,69,196,.10) 0%, transparent 42%),
-    radial-gradient(circle at 86% 14%, rgba(233,169,60,.13) 0%, transparent 38%),
-    radial-gradient(circle at 80% 86%, rgba(30,122,78,.11) 0%, transparent 40%),
-    radial-gradient(circle at 14% 84%, rgba(30,69,196,.08) 0%, transparent 36%);
 }
 
 @utility pattern-diag {

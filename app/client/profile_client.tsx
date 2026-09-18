@@ -78,12 +78,19 @@ export function ProfileClient({
   const [pickingAvatar, setPickingAvatar] = React.useState(false);
   const [avatarChoice, setAvatarChoiceLocal] = React.useState(avatarId);
   const [savingAvatar, setSavingAvatar] = React.useState(false);
+  const [avatarError, setAvatarError] = React.useState<string | null>(null);
 
   async function pickAvatar(id: string) {
+    const previous = avatarChoice;
     setAvatarChoiceLocal(id);
     setPickingAvatar(false);
     setSavingAvatar(true);
-    await setAvatarChoice(id);
+    setAvatarError(null);
+    const { error } = await setAvatarChoice(id);
+    if (error) {
+      setAvatarChoiceLocal(previous);
+      setAvatarError(error);
+    }
     setSavingAvatar(false);
   }
 
@@ -111,17 +118,11 @@ export function ProfileClient({
         <div className="relative z-[1] flex flex-wrap items-center justify-between gap-6">
           <div className="flex items-center gap-5">
             <div className="relative shrink-0">
-              {gender || avatarChoice ? (
-                <img
-                  src={resolveAvatarSrc(userId, gender ?? "female", avatarChoice)}
-                  alt=""
-                  className={cn("h-20 w-20 rounded-full border-2 border-white shadow-sm", savingAvatar && "opacity-60")}
-                />
-              ) : (
-                <div className="grid h-20 w-20 place-items-center rounded-full bg-blue-tint text-[1.7rem] font-extrabold text-primary">
-                  {name.slice(0, 1).toUpperCase()}
-                </div>
-              )}
+              <img
+                src={resolveAvatarSrc(userId, gender, avatarChoice)}
+                alt=""
+                className={cn("h-20 w-20 rounded-full border-2 border-white shadow-sm", savingAvatar && "opacity-60")}
+              />
               <button
                 type="button"
                 onClick={() => setPickingAvatar((v) => !v)}
@@ -149,6 +150,7 @@ export function ProfileClient({
                       </button>
                     ))}
                   </div>
+                  {avatarError && <p className="mt-2 px-1 text-[.74rem] font-bold text-destructive">{avatarError}</p>}
                 </div>
               )}
             </div>

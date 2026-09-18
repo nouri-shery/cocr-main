@@ -16,8 +16,8 @@ export function Section({
   id, children, tone = "plain", pattern, className,
 }: {
   id?: string; children: React.ReactNode;
-  tone?: "plain" | "sand" | "blue" | "dark" | "lilac" | "mist" | "sage" | "clay";
-  pattern?: "dots" | "grid" | "diag" | "glow" | "blobs";
+  tone?: "plain" | "sand" | "blue" | "dark";
+  pattern?: "dots" | "grid" | "diag" | "glow";
   className?: string;
 }) {
   return (
@@ -26,10 +26,6 @@ export function Section({
       tone === "sand" && "bg-sand",
       tone === "blue" && "bg-blue-tint",
       tone === "dark" && "bg-[#14161C] text-white",
-      tone === "lilac" && "bg-lilac",
-      tone === "mist" && "bg-mist",
-      tone === "sage" && "bg-sage",
-      tone === "clay" && "bg-clay",
       className,
     )}>
       {pattern && <span aria-hidden className={cn("pointer-events-none absolute inset-0 z-[1]", `pattern-${pattern}`, tone === "dark" && "pattern-on-dark")} />}
@@ -102,7 +98,7 @@ const ROUTE = ["اعرف مجالك", "ابدأ رحلة واحدة", "مينت�
 
 export function ProblemSection() {
   return (
-    <Section id="problem" tone="clay" pattern="grid">
+    <Section id="problem" tone="sand" pattern="grid">
       <SectionHead center num="01" label="المشكلة"
         title="مش عارف تبدأ منين؟ مش أنت لوحدك."
         lead="المحتوى مش المشكلة — المشكلة إن مفيش حد قايلك تبدأ بإيه، ولا إيه اللي بعده." />
@@ -250,7 +246,7 @@ const PHASE_TONE: Record<Accent, { acc: string; bg: string; dot: string }> = {
 export async function JourneySection() {
   const phases = await getJourneyPhases();
   return (
-    <Section id="journey" tone="mist" pattern="blobs">
+    <Section id="journey" tone="blue" pattern="dots">
       <SectionHead center num="03" label="الرحلة" title="تمن خطوات على تلات مراحل"
         lead="مش هتدخل تتعلم وخلاص. كل مرحلة ليها هدف، وكل خطوة بتفتح اللي بعدها." />
 
@@ -311,7 +307,7 @@ export async function JourneySection() {
 /* ================================================================== */
 export function NearPeerSection() {
   return (
-    <Section id="nearpeer" tone="lilac" pattern="glow">
+    <Section id="nearpeer" pattern="glow">
       <SectionHead center num="04" label="Near Peer Learning"
         title="نفس السؤال... إجابتين مختلفين تماماً"
         lead="جرّب تسأل نفس السؤال لحد سبقك بعشر سنين، ولحد سبقك بسنة. الفرق مش في المعرفة — الفرق إنه لسه فاكر." />
@@ -428,7 +424,7 @@ export async function PlatformSectionsBlock() {
   const rest = sections.filter((s) => !s.featured);
 
   return (
-    <Section id="sections" tone="sage" pattern="grid">
+    <Section id="sections" tone="sand" pattern="grid">
       <SectionHead center num="05" label="أقسام المنصة" title="سبع حاجات، وكل واحدة بتكمّل اللي قبلها" />
 
       <Reveal className="mb-6 grid items-center gap-10 rounded-[26px] border border-border bg-white p-8 shadow-[0_8px_28px_-12px_rgba(22,24,31,.14)] lg:grid-cols-[1.02fr_.98fr] lg:p-10">
@@ -545,7 +541,7 @@ export async function MentorsSection() {
 export async function CoursesSection() {
   const [courses, categories] = await Promise.all([getCourses(), getCourseCategories()]);
   return (
-    <Section id="courses" tone="clay" pattern="grid">
+    <Section id="courses" tone="sand" pattern="grid">
       <SectionHead center num="07" label="الكورسات" title="كورسات قصيرة، كل واحد بيخلّص بحاجة عملتها"
         lead="مفيش كورس هنا بينتهي بفيديو — كل واحد آخره تسليم بيتراجع من مينتور." />
 
@@ -568,7 +564,7 @@ export async function ProjectsSection() {
   if (projects.length === 0) return null;
 
   return (
-    <Section id="projects" tone="mist" pattern="diag">
+    <Section id="projects" tone="sand" pattern="diag">
       <SectionHead num="08" label="المشاريع" title="النتيجة مش شهادة — النتيجة حاجة بنيتها" />
       <div className="grid gap-6 lg:grid-cols-3">
         {projects.map((p, i) => (
@@ -601,18 +597,18 @@ export async function ProjectsSection() {
 /* ================================================================== */
 export function CommunitySection() {
   return (
-    <Section id="stories" tone="plain" pattern="dots">
+    <Section id="stories" tone="dark" pattern="dots">
       <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-[72px]">
         <Reveal>
-          <span className="block font-display text-[clamp(2.6rem,5vw,4rem)] font-extrabold leading-[.9] tracking-tighter text-green/40">09</span>
+          <span className="block font-display text-[clamp(2.6rem,5vw,4rem)] font-extrabold leading-[.9] tracking-tighter text-green/50">09</span>
           <span className="mb-3.5 mt-2.5 block text-[.75rem] font-extrabold tracking-[.18em] text-green">المجتمع</span>
-          <h2 className="mb-4 text-[clamp(1.95rem,3.9vw,2.95rem)] font-extrabold leading-tight tracking-tight">
+          <h2 className="mb-4 text-[clamp(1.95rem,3.9vw,2.95rem)] font-extrabold leading-tight tracking-tight text-white">
             أصعب حاجة في التعلم إنك تحس إنك لوحدك
           </h2>
-          <p className="max-w-[34em] text-[1.12rem] leading-[1.9] text-muted-foreground">
+          <p className="max-w-[34em] text-[1.12rem] leading-[1.9] text-white/60">
             في COCR السؤال بيلاقي رد من حد عدّى بيه من سنة — مش من حد بيتفرج عليك من فوق.
           </p>
-          <span className="mt-5 inline-flex items-center gap-2 rounded-full border border-green/25 bg-green-50 px-4 py-1.5 text-[.8rem] font-semibold text-green">
+          <span className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-[.8rem] font-semibold text-white/80">
             محتوى تجريبي في مرحلة الـ Beta
           </span>
         </Reveal>
@@ -637,13 +633,13 @@ function Msg({
 }) {
   return (
     <div className={cn("rounded-2xl border p-[18px]",
-      reply ? "ms-10 border-primary/25 bg-blue-50" : "border-border bg-white")}>
+      reply ? "ms-10 border-primary/35 bg-primary/15" : "border-white/12 bg-white/5")}>
       <div className="mb-2 flex items-center gap-2.5">
         <Avatar seed={seed} className="h-8 w-8" />
         <b className="text-[.88rem] font-bold">{name}</b>
-        <span className="text-[.75rem] text-muted-foreground">{meta}</span>
+        <span className="text-[.75rem] text-white/50">{meta}</span>
       </div>
-      <p className="text-[.92rem] leading-[1.75] text-foreground/80">{text}</p>
+      <p className="text-[.92rem] leading-[1.75] text-white/80">{text}</p>
       {tick && (
         <div className="mt-2.5 flex items-center gap-1.5 text-[.76rem] font-bold text-green">
           <Check className="h-4 w-4" /> {tick}
@@ -705,7 +701,7 @@ export async function OpportunitiesSection() {
 export async function GrowthSection() {
   const rungs = await getGrowthLadder();
   return (
-    <Section id="grow" tone="sage" pattern="blobs">
+    <Section id="grow" tone="blue" pattern="dots">
       <SectionHead center num="11" label="هتبقى مين" title="النهارده بتتعلم... بكرة أنت اللي بتعلّم"
         lead="ده مش شعار — ده إزاي المنصة بتشتغل. المينتور بتاعك كان طالب هنا." />
 

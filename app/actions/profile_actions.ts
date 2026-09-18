@@ -62,7 +62,9 @@ export async function setAvatarChoice(avatarId: string): Promise<{ error: string
     .update({ avatar_id: avatarId, updated_at: new Date().toISOString() })
     .eq("id", user.id);
 
-  if (error) return { error: "حصل خطأ، جرّب تاني بعد شوية." };
+  // بنبين رسالة الخطأ الحقيقية من Postgres مؤقتًا (مش النص العام) عشان لو
+  // حصلت تاني نقدر نشخّصها بالظبط من غير ما نخمّن
+  if (error) return { error: `حصل خطأ: ${error.message}` };
   revalidatePath("/profile");
   revalidatePath("/mentor");
   return { error: null };

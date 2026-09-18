@@ -16,7 +16,7 @@ export function Section({
   id, children, tone = "plain", pattern, className,
 }: {
   id?: string; children: React.ReactNode;
-  tone?: "plain" | "sand" | "blue" | "dark";
+  tone?: "plain" | "sand" | "blue" | "dark" | "beige";
   pattern?: "dots" | "grid" | "diag" | "glow";
   className?: string;
 }) {
@@ -26,6 +26,7 @@ export function Section({
       tone === "sand" && "bg-sand",
       tone === "blue" && "bg-blue-tint",
       tone === "dark" && "bg-[#14161C] text-white",
+      tone === "beige" && "bg-beige",
       className,
     )}>
       {pattern && <span aria-hidden className={cn("pointer-events-none absolute inset-0 z-[1]", `pattern-${pattern}`, tone === "dark" && "pattern-on-dark")} />}
@@ -35,11 +36,11 @@ export function Section({
 }
 
 export function SectionHead({
-  num, label, title, lead, center,
-}: { num?: string; label: string; title: string; lead?: string; center?: boolean }) {
+  num, label, title, lead, center, numClassName,
+}: { num?: string; label: string; title: string; lead?: string; center?: boolean; numClassName?: string }) {
   return (
     <Reveal className={cn("mb-12 lg:mb-[48px]", center && "mx-auto max-w-[44em] text-center")}>
-      {num && <span className="block font-display text-[clamp(2.6rem,5vw,4rem)] font-extrabold leading-[.9] tracking-tighter text-gold-600/40">{num}</span>}
+      {num && <span className={cn("block font-display text-[clamp(2.6rem,5vw,4rem)] font-extrabold leading-[.9] tracking-tighter", numClassName ?? "text-gold-600/40")}>{num}</span>}
       <span className="mb-3.5 mt-2.5 block text-[.75rem] font-extrabold tracking-[.18em] text-gold-600">{label}</span>
       <h2 className={cn("mb-4 max-w-[18em] text-[clamp(1.95rem,3.9vw,2.95rem)] font-extrabold leading-tight tracking-tight", center && "mx-auto")}>{title}</h2>
       {lead && <p className={cn("max-w-[34em] text-[1.12rem] leading-[1.9] text-muted-foreground", center && "mx-auto")}>{lead}</p>}
@@ -246,8 +247,11 @@ const PHASE_TONE: Record<Accent, { acc: string; bg: string; dot: string }> = {
 export async function JourneySection() {
   const phases = await getJourneyPhases();
   return (
-    <Section id="journey" tone="blue" pattern="dots">
-      <SectionHead center num="03" label="الرحلة" title="تمن خطوات على تلات مراحل"
+    <Section id="journey" tone="beige" pattern="dots">
+      <span aria-hidden className="animate-soft-pulse pointer-events-none absolute -end-10 -top-10 z-0">
+        <Icon3D name="compass" className="h-44 w-44" />
+      </span>
+      <SectionHead center num="03" numClassName="text-sugar-white" label="الرحلة" title="تمن خطوات على تلات مراحل"
         lead="مش هتدخل تتعلم وخلاص. كل مرحلة ليها هدف، وكل خطوة بتفتح اللي بعدها." />
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -564,8 +568,11 @@ export async function ProjectsSection() {
   if (projects.length === 0) return null;
 
   return (
-    <Section id="projects" tone="sand" pattern="diag">
-      <SectionHead num="08" label="المشاريع" title="النتيجة مش شهادة — النتيجة حاجة بنيتها" />
+    <Section id="projects" tone="beige" pattern="diag">
+      <span aria-hidden className="animate-soft-pulse pointer-events-none absolute -start-12 -bottom-12 z-0">
+        <Icon3D name="build" className="h-44 w-44" />
+      </span>
+      <SectionHead num="08" numClassName="text-sugar-white" label="المشاريع" title="النتيجة مش شهادة — النتيجة حاجة بنيتها" />
       <div className="grid gap-6 lg:grid-cols-3">
         {projects.map((p, i) => (
           <Reveal key={p.id} delay={i * 80} variant="pop">

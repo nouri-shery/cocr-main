@@ -58,7 +58,7 @@ export async function MentorHomeContent() {
           </span>
           <div className="relative z-[1] flex flex-wrap items-center gap-5">
             <img
-              src={resolveAvatarSrc(user.id, application.gender, profile?.avatar_id ?? null)}
+              src={resolveAvatarSrc(user.id, profile?.gender ?? null, profile?.avatar_id ?? null)}
               alt=""
               className="h-16 w-16 shrink-0 rounded-full border-2 border-white shadow-sm transition-transform duration-300 hover:scale-105 hover:rotate-2"
             />

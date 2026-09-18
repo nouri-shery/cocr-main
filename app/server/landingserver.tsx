@@ -251,7 +251,7 @@ export async function JourneySection() {
       <span aria-hidden className="animate-soft-pulse pointer-events-none absolute -end-10 -top-10 z-0">
         <Icon3D name="compass" className="h-44 w-44" />
       </span>
-      <SectionHead center num="03" numClassName="text-sugar-white" label="الرحلة" title="تمن خطوات على تلات مراحل"
+      <SectionHead center num="03" label="الرحلة" title="تمن خطوات على تلات مراحل"
         lead="مش هتدخل تتعلم وخلاص. كل مرحلة ليها هدف، وكل خطوة بتفتح اللي بعدها." />
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -574,7 +574,7 @@ export async function ProjectsSection() {
       <span aria-hidden className="animate-soft-pulse pointer-events-none absolute -start-12 -bottom-12 z-0">
         <Icon3D name="build" className="h-44 w-44" />
       </span>
-      <SectionHead num="08" numClassName="text-sugar-white" label="المشاريع" title="النتيجة مش شهادة — النتيجة حاجة بنيتها" />
+      <SectionHead num="08" label="المشاريع" title="النتيجة مش شهادة — النتيجة حاجة بنيتها" />
       <div className="grid gap-6 lg:grid-cols-3">
         {projects.map((p, i) => {
           const t = PROJECT_TONE;

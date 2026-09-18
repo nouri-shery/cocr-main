@@ -563,11 +563,7 @@ export async function CoursesSection() {
 /* ================================================================== */
 /*  08 — المشاريع                                                      */
 /* ================================================================== */
-const PROJECT_TONE = [
-  { acc: "#1E45C4", bg: "#EEF2FE", dot: "rgba(30,69,196,.18)", icon: "hammer" },
-  { acc: "#B8801F", bg: "#FBF1DC", dot: "rgba(184,128,31,.18)", icon: "build" },
-  { acc: "#1E7A4E", bg: "#EAF6EF", dot: "rgba(30,122,78,.18)", icon: "rocket" },
-] as const;
+const PROJECT_TONE = { acc: "#1E45C4", bg: "#EEF2FE", icon: "build" } as const;
 
 export async function ProjectsSection() {
   const projects = (await getPublishedProjects()).slice(0, 3);
@@ -581,19 +577,12 @@ export async function ProjectsSection() {
       <SectionHead num="08" numClassName="text-sugar-white" label="المشاريع" title="النتيجة مش شهادة — النتيجة حاجة بنيتها" />
       <div className="grid gap-6 lg:grid-cols-3">
         {projects.map((p, i) => {
-          const t = PROJECT_TONE[i % PROJECT_TONE.length];
+          const t = PROJECT_TONE;
           const ownerName = p.owner?.display_name || "طالب COCR";
           return (
             <Reveal key={p.id} delay={i * 80} variant="pop">
               <Link href={`/projects/${p.id}`} className="group flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-white transition-all duration-300 hover:-translate-y-1.5 hover:border-transparent hover:shadow-[0_22px_50px_-22px_rgba(22,24,31,.3)]">
                 <div className="relative overflow-hidden px-6 pb-5 pt-6" style={{ background: t.bg }}>
-                  <span aria-hidden className="absolute inset-0"
-                    style={{
-                      backgroundImage: `radial-gradient(circle at 1px 1px, ${t.dot} 1.2px, transparent 0)`,
-                      backgroundSize: "18px 18px",
-                      maskImage: "linear-gradient(to bottom,#000,transparent)",
-                      WebkitMaskImage: "linear-gradient(to bottom,#000,transparent)",
-                    }} />
                   <Icon3D name={t.icon} className="relative z-[2] h-14 w-14 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105" />
                 </div>
                 <span className="h-[4px]" style={{ background: t.acc }} />

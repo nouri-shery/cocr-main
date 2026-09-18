@@ -2,15 +2,15 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { UserCircle, ArrowLeft } from "lucide-react";
+import { UserCircle, ArrowLeft, Video, Calendar } from "lucide-react";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { JourneyCompact, JourneyFull, type JourneySignals } from "./journey_client";
+import { JourneyCompact, type JourneySignals } from "./journey_client";
 import type { OpportunityListing, Course, Mentor } from "../types/types";
 import type { Project, RecentFeedback } from "../actions/projects_actions";
 import type { LessonSummary } from "../actions/lessons_actions";
-import type { NextMove } from "../server/dashboardserver";
+import type { NextMove, UpcomingSessionCard } from "../server/dashboardserver";
 
 export interface StartedCourseProgress {
   course: Course;
@@ -27,13 +27,16 @@ const ACCENT: Record<string, { bg: string; fg: string }> = {
 };
 
 export function DashboardClient({
-  opportunities, mentors, startedCourses, currentLearning, nextMoves, journeySignals, projects, recentFeedback,
+  opportunities, mentors, startedCourses, currentLearning, nextMoves, upcomingSession, otherUpcomingSessions, stats, journeySignals, projects, recentFeedback,
 }: {
   opportunities: OpportunityListing[];
   mentors: Mentor[];
   startedCourses: StartedCourseProgress[];
   currentLearning: StartedCourseProgress | null;
   nextMoves: NextMove[];
+  upcomingSession: UpcomingSessionCard | null;
+  otherUpcomingSessions: UpcomingSessionCard[];
+  stats: { enrollments: number; publishedProjects: number; feedbackGiven: number };
   journeySignals: JourneySignals;
   projects: Project[];
   recentFeedback: RecentFeedback[];
@@ -49,17 +52,39 @@ export function DashboardClient({
       {/* 1. مين انت + فين رحلتك + خطوتك الجاية — بلوك واحد فوق بدل sections
           منفصلة بنفس الوزن، عشان أول حاجة تشوفها تبقى واضحة ومركّزة */}
       <section className="flex flex-col gap-4">
-        <JourneyCompact signals={journeySignals} />
+        <div className="flex items-center justify-between gap-3">
+          <JourneyCompact signals={journeySignals} />
+          <Link href="/profile" className="shrink-0 text-[.78rem] font-bold text-primary whitespace-nowrap">
+            رحلتك الكاملة ←
+          </Link>
+        </div>
+        {(stats.enrollments > 0 || stats.publishedProjects > 0 || stats.feedbackGiven > 0) && (
+          <p className="text-[.84rem] font-bold text-slate-500">
+            {[
+              stats.enrollments > 0 && `${stats.enrollments} كورس بدأته`,
+              stats.publishedProjects > 0 && `${stats.publishedProjects} مشروع منشور`,
+              stats.feedbackGiven > 0 && `${stats.feedbackGiven} ملاحظة قدّمتها`,
+            ].filter(Boolean).join(" · ")}
+          </p>
+        )}
         <CurrentLearningHero learning={currentLearning} />
-        {nextMoves.length > 0 && (
-          <div className="flex flex-wrap gap-3">
+
+        {/* حاجات مستنياك — كل كارت هنا فعل حقيقي فعلاً متاح دلوقتي، مفيش كارت
+            وهمي بيتعرض عشان بس يملي مساحة */}
+        {(nextMoves.length > 0 || upcomingSession) && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {upcomingSession && <UpcomingSessionActionCard session={upcomingSession} />}
             {nextMoves.map((m) => (
               <Link
                 key={m.href}
                 href={m.href}
-                className="flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-[.9rem] font-extrabold text-white transition-all hover:-translate-y-0.5"
+                className="flex items-center gap-3 rounded-2xl border border-border bg-white p-4 transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_18px_38px_-20px_rgba(22,24,31,.32)]"
               >
-                {m.label} <ArrowLeft className="h-4 w-4" />
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue-tint">
+                  <Icon3D name={m.icon} className="h-6 w-6" />
+                </span>
+                <span className="flex-1 text-[.9rem] font-extrabold leading-snug">{m.label}</span>
+                <ArrowLeft className="h-4 w-4 shrink-0 text-slate-400" />
               </Link>
             ))}
           </div>
@@ -94,6 +119,47 @@ export function DashboardClient({
                     </div>
                   )}
                 </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* 3. جدولك — كل السيشنز الجاية (غير اللي ظاهرة أصلاً فوق كـ"حاجة
+          مستنياك")، بيانات حقيقية من course_sessions */}
+      {otherUpcomingSessions.length > 0 && (
+        <section>
+          <h2 className="mb-4 text-[1.2rem] font-extrabold">جدولك</h2>
+          <div className="flex flex-col divide-y divide-border rounded-2xl border border-border bg-white">
+            {otherUpcomingSessions.map((s) => {
+              const date = new Date(s.scheduledAt);
+              return (
+                <div key={s.id} className="flex flex-wrap items-center gap-3 p-4">
+                  <div className="flex min-w-[140px] flex-col">
+                    <span className="text-[.82rem] font-extrabold text-primary">
+                      {date.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "short" })}
+                    </span>
+                    <span className="text-[.76rem] font-bold text-slate-500">
+                      {date.toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[.88rem] font-extrabold">{s.title}</p>
+                    <p className="truncate text-[.76rem] text-muted-foreground">{s.courseTitle}</p>
+                  </div>
+                  {s.zoomLink ? (
+                    <a
+                      href={s.zoomLink} target="_blank" rel="noopener noreferrer"
+                      className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-[.78rem] font-extrabold text-white"
+                    >
+                      ادخل السيشن
+                    </a>
+                  ) : (
+                    <Link href={s.href} className="shrink-0 text-[.78rem] font-bold text-primary underline">
+                      افتح الكورس
+                    </Link>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -178,14 +244,9 @@ export function DashboardClient({
         </section>
       )}
 
-      {/* 6. رحلتك في COCR — نفس مكوّن الرحلة اللي في البروفايل، بيوصل لحد
-          "مينتور" فعليًا، مش بيقف عند "حصلت على Feedback" */}
-      <section>
-        <h2 className="mb-4 text-[1.2rem] font-extrabold">رحلتك في COCR</h2>
-        <div className="rounded-2xl border border-border bg-white p-5">
-          <JourneyFull signals={journeySignals} />
-        </div>
-      </section>
+      {/* الرحلة الكاملة (JourneyFull) موجودة في البروفايل بس دلوقتي — هنا
+          كان في نسخة مكررة، اتشالت عشان الداشبورد تفضل عن "الخطوة الجاية"
+          مش تكرار لصفحة تانية */}
 
       {/* 7. فرص ممكن تهمك — محتوى منسّق حقيقي، لكن مش مُدّعى إنه personalized */}
       <section>
@@ -229,6 +290,43 @@ export function DashboardClient({
       </section>
 
       <MentorCtaDialog open={mentorModalOpen} onOpenChange={setMentorModalOpen} mentors={mentors} />
+    </div>
+  );
+}
+
+/** كارت السيشن الجاي — بيانات حقيقية من course_sessions، بيظهر بس لو فيه
+ * سيشن فعلاً محجوز جاي في كورس الطالب متسجّل فيه */
+function UpcomingSessionActionCard({ session }: { session: UpcomingSessionCard }) {
+  const date = new Date(session.scheduledAt);
+  const dateLabel = date.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "short" });
+  const timeLabel = date.toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" });
+
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-primary/30 bg-blue-tint p-4">
+      <div className="flex items-center gap-3">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white">
+          <Calendar className="h-5 w-5 text-primary" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[.9rem] font-extrabold leading-snug">{session.title}</p>
+          <p className="truncate text-[.76rem] text-muted-foreground">{session.courseTitle}</p>
+        </div>
+      </div>
+      <p className="text-[.82rem] font-bold text-primary">{dateLabel} · {timeLabel}</p>
+      {session.zoomLink ? (
+        <a
+          href={session.zoomLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[.85rem] font-extrabold text-white"
+        >
+          <Video className="h-4 w-4" /> ادخل السيشن
+        </a>
+      ) : (
+        <Link href={session.href} className="text-center text-[.82rem] font-bold text-primary underline">
+          افتح الكورس
+        </Link>
+      )}
     </div>
   );
 }

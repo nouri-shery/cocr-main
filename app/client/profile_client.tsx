@@ -3,7 +3,10 @@
 import * as React from "react";
 import { useActionState } from "react";
 import Link from "next/link";
-import { LogOut, Pencil, GraduationCap, Check } from "lucide-react";
+import {
+  LogOut, Pencil, GraduationCap, Check, BookOpen, Hammer, MessageSquare,
+  User, Trophy, Calendar, Clock,
+} from "lucide-react";
 import { signOut } from "@/components/homecomponent/auth/actions";
 import { updateProfile, type ProfileActionResult } from "../actions/profile_actions";
 import { INTERESTS, STAGES, GOALS, type InterestId, type StageId, type GoalId } from "../lib/onboarding";
@@ -11,6 +14,7 @@ import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { JourneyFull, computeJourney, type JourneySignals } from "./journey_client";
+import { avatarUrl } from "../lib/dicebear-avatar";
 import type { Course, Mentor, OpportunityListing } from "../types/types";
 import type { Project, RecentFeedback } from "../actions/projects_actions";
 import type { CourseProgress } from "../actions/lessons_actions";
@@ -23,21 +27,52 @@ export interface ActivityEvent {
   href: string;
 }
 
+export interface UpcomingSessionItem {
+  id: string;
+  title: string;
+  courseTitle: string;
+  scheduledAt: string;
+  zoomLink: string | null;
+}
+
+const TABS = [
+  { id: "info", label: "معلوماتي", icon: User },
+  { id: "achievements", label: "إنجازاتي", icon: Trophy },
+  { id: "courses", label: "كورساتي", icon: BookOpen },
+  { id: "schedule", label: "جدولي", icon: Calendar },
+] as const;
+type TabId = (typeof TABS)[number]["id"];
+
+/** "عضو منذ" — حقيقي من auth.users.created_at، مفيش تقريب لأشهر وهمية */
+function memberSinceLabel(iso: string): string {
+  const start = new Date(iso);
+  const months = Math.max(0, (Date.now() - start.getTime()) / (1000 * 60 * 60 * 24 * 30));
+  if (months < 1) return "عضو من أقل من شهر";
+  if (months < 2) return "عضو منذ شهر";
+  if (months < 12) return `عضو منذ ${Math.floor(months)} شهور`;
+  const years = Math.floor(months / 12);
+  return years === 1 ? "عضو منذ سنة" : `عضو منذ ${years} سنين`;
+}
+
 export function ProfileClient({
-  name, email, bio, skills, stage, interests, goal,
-  startedCourses, progressByCourse, mentorById, projects, givenFeedback,
-  savedOpportunities, journeySignals, activity, isApprovedMentor,
+  name, email, bio, skills, stage, gender, userId, interests, goal,
+  startedCourses, progressByCourse, mentorById, projects, givenFeedback, givenFeedbackCount,
+  savedOpportunities, upcomingSessions, memberSince, journeySignals, activity, isApprovedMentor,
 }: {
   name: string; email: string; bio: string; skills: string[];
-  stage: string | null; interests: string[]; goal: string | null;
+  stage: string | null; gender: "male" | "female" | null; userId: string;
+  interests: string[]; goal: string | null;
   startedCourses: Course[]; progressByCourse: Record<string, CourseProgress>;
   mentorById: Record<string, Mentor>;
-  projects: Project[]; givenFeedback: RecentFeedback[];
+  projects: Project[]; givenFeedback: RecentFeedback[]; givenFeedbackCount: number;
   savedOpportunities: OpportunityListing[];
+  upcomingSessions: UpcomingSessionItem[];
+  memberSince: string;
   journeySignals: JourneySignals;
   activity: ActivityEvent[];
   isApprovedMentor: boolean;
 }) {
+  const [tab, setTab] = React.useState<TabId>("info");
   const [editing, setEditing] = React.useState(false);
   const [state, formAction, pending] = useActionState(updateProfile, initialState);
 
@@ -53,292 +88,333 @@ export function ProfileClient({
     .map((i) => INTERESTS.find((x) => x.id === (i as InterestId))?.label)
     .filter((l): l is string => !!l);
   const { current } = computeJourney(journeySignals);
+  const publishedCount = projects.filter((p) => p.status === "published").length;
 
   return (
     <div className="flex flex-col gap-6">
-      {/* الهيدر — هويتك: اسمك، مرحلتك الحالية، نبذتك ومهاراتك */}
-      <div className="grid gap-6 sm:grid-cols-[280px_1fr]">
-        <div className="rounded-3xl border border-border bg-white p-6 text-center">
-          <div className="mx-auto mb-4 grid h-20 w-20 place-items-center rounded-full bg-blue-tint text-[1.7rem] font-extrabold text-primary">
-            {name.slice(0, 1).toUpperCase()}
+      {/* الهيرو — هويتك الحقيقية: أفاتار (لو حددت جنسك في الأونبوردينج)، اسمك، مرحلتك، وعضويتك */}
+      <section className="animate-fade-up relative overflow-hidden rounded-3xl border border-border bg-white p-7">
+        <span aria-hidden className="animate-soft-pulse absolute -left-8 -top-8">
+          <Icon3D name="path" className="h-36 w-36" />
+        </span>
+        <div className="relative z-[1] flex flex-wrap items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            {gender ? (
+              <img src={avatarUrl(userId, gender)} alt="" className="h-20 w-20 shrink-0 rounded-full border-2 border-white shadow-sm" />
+            ) : (
+              <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-blue-tint text-[1.7rem] font-extrabold text-primary">
+                {name.slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <p className="text-[1.2rem] font-extrabold">{name}</p>
+              <p className="text-[.84rem] text-muted-foreground">{email}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-tint px-3 py-1 text-[.76rem] font-bold text-primary">
+                  مرحلتك: {current.label}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-[.76rem] font-bold text-slate-600">
+                  <Clock className="h-3 w-3" /> {memberSinceLabel(memberSince)}
+                </span>
+              </div>
+            </div>
           </div>
-          <p className="text-[1.05rem] font-extrabold">{name}</p>
-          <p className="mt-1 text-[.85rem] text-muted-foreground">{email}</p>
-          <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-blue-tint px-3 py-1 text-[.78rem] font-bold text-primary">
-            مرحلتك: {current.label}
-          </span>
 
-          <Link
-            href={isApprovedMentor ? "/mentor/submissions" : "/become-a-mentor"}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 py-2.5 text-[.85rem] font-bold text-primary hover:bg-blue-tint"
-          >
-            <GraduationCap className="h-4 w-4" /> {isApprovedMentor ? "تسليمات طلابك" : "تبقى مينتور"}
-          </Link>
-
-          <form
-            action={signOut}
-            className="mt-6"
-            onSubmit={() => {
-              // "المحفوظة" بقت حقيقية على الحساب (saved_items) — بس فرص المتصفح
-              // المؤقتة (لو أي حاجة قديمة فاضلة) بتتمسح عادي عند الخروج
-              try {
-                window.localStorage.removeItem("cocr-saved-opportunities");
-                window.localStorage.removeItem("cocr-onboarding");
-              } catch {
-                /* localStorage غير متاح — تسجيل الخروج يكمل عادي */
-              }
-            }}
-          >
-            <button
-              type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-[.88rem] font-bold text-slate-600 hover:border-destructive/40 hover:text-destructive"
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <Link
+              href={isApprovedMentor ? "/mentor" : "/become-a-mentor"}
+              className="flex items-center gap-2 rounded-xl border border-dashed border-primary/40 px-4 py-2.5 text-[.84rem] font-bold text-primary transition-colors hover:bg-blue-tint"
             >
-              <LogOut className="h-4 w-4" /> تسجيل الخروج
-            </button>
-          </form>
+              <GraduationCap className="h-4 w-4" /> {isApprovedMentor ? "مساحة المينتور" : "تبقى مينتور"}
+            </Link>
+            <form
+              action={signOut}
+              onSubmit={() => {
+                try {
+                  window.localStorage.removeItem("cocr-saved-opportunities");
+                  window.localStorage.removeItem("cocr-onboarding");
+                } catch {
+                  /* localStorage غير متاح — تسجيل الخروج يكمل عادي */
+                }
+              }}
+            >
+              <button
+                type="submit"
+                className="flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-[.84rem] font-bold text-slate-600 transition-colors hover:border-destructive/40 hover:text-destructive"
+              >
+                <LogOut className="h-4 w-4" /> تسجيل الخروج
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
 
-          <div className="mt-4 flex flex-col gap-1.5 text-[.78rem]">
+      {/* أرقامك الحقيقية بس — مفيش ساعات تعلّم ولا streak، دول مش متتبَّعين فعليًا دلوقتي */}
+      <div className="grid animate-fade-up grid-cols-2 gap-4 sm:grid-cols-4" style={{ animationDelay: "60ms" }}>
+        <QuickStat icon={<BookOpen className="h-4.5 w-4.5" />} value={startedCourses.length} label="كورس بدأته" />
+        <QuickStat icon={<Hammer className="h-4.5 w-4.5" />} value={publishedCount} label="مشروع منشور" />
+        <QuickStat icon={<MessageSquare className="h-4.5 w-4.5" />} value={givenFeedbackCount} label="ملاحظة قدّمتها" />
+        <QuickStat icon={<Trophy className="h-4.5 w-4.5" />} value={computeJourney(journeySignals).stages.filter((s) => s.achieved).length} label="مرحلة وصلتها" />
+      </div>
+
+      {/* تابات — كل تاب محتواه حقيقي بالكامل */}
+      <div className="animate-fade-up flex flex-wrap gap-1 rounded-2xl border border-border bg-white p-1.5" style={{ animationDelay: "110ms" }}>
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const isActive = t.id === tab;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={
+                isActive
+                  ? "flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-[.84rem] font-extrabold text-white shadow-[0_10px_22px_-12px_rgba(30,69,196,.6)] transition-all"
+                  : "flex items-center gap-1.5 rounded-xl px-4 py-2 text-[.84rem] font-bold text-muted-foreground transition-all hover:bg-blue-50 hover:text-primary"
+              }
+            >
+              <Icon className="h-4 w-4" /> {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === "info" && (
+        <div className="flex flex-col gap-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <SectionCard title="نبذة ومهاراتك" action={!editing && (
+              <button type="button" onClick={() => setEditing(true)} className="flex items-center gap-1 text-[.82rem] font-bold text-primary">
+                <Pencil className="h-3.5 w-3.5" /> تعديل
+              </button>
+            )}>
+              {editing ? (
+                <form action={formAction} className="flex flex-col gap-4">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[.84rem] font-bold text-slate-600">نبذة عنك</span>
+                    <textarea
+                      name="bio" defaultValue={bio} maxLength={300} rows={3}
+                      placeholder="اكتب سطرين عن نفسك ومهتم بإيه..."
+                      className="rounded-xl border border-border p-3 text-[.9rem] outline-none focus:border-primary"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[.84rem] font-bold text-slate-600">مهاراتك (افصل بينهم بفاصلة)</span>
+                    <input
+                      name="skills" defaultValue={skills.join(", ")} placeholder="مثال: HTML, CSS, تصميم شعارات"
+                      className="h-11 rounded-xl border border-border px-3 text-[.9rem] outline-none focus:border-primary"
+                    />
+                  </label>
+                  {state.error && <p className="text-[.82rem] font-semibold text-destructive">{state.error}</p>}
+                  <div className="flex gap-2">
+                    <button type="submit" disabled={pending} className="rounded-xl bg-primary px-5 py-2 text-[.88rem] font-extrabold text-white disabled:opacity-60">
+                      {pending ? "لحظة..." : "احفظ"}
+                    </button>
+                    <button type="button" onClick={() => setEditing(false)} className="rounded-xl border border-border px-5 py-2 text-[.88rem] font-bold text-slate-600">
+                      إلغاء
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <p className="text-[.92rem] leading-relaxed text-muted-foreground">
+                    {bio || "لسه معملتش نبذة عن نفسك — دوس تعديل وضيف سطرين."}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {skills.length > 0
+                      ? skills.map((s) => <span key={s} className="rounded-full bg-blue-tint px-3 py-1 text-[.8rem] font-bold text-primary">{s}</span>)
+                      : <span className="text-[.85rem] text-muted-foreground">لسه مضفتش مهارات.</span>}
+                  </div>
+                </div>
+              )}
+            </SectionCard>
+
+            {!stageLabel && interestLabels.length === 0 && !goalLabel ? (
+              <Link
+                href="/onboarding"
+                className="flex items-center justify-between gap-3 rounded-3xl border border-dashed border-border bg-white px-6 py-6 text-[.85rem] font-semibold text-muted-foreground transition-colors hover:border-primary/40"
+              >
+                كمّل بياناتك في الأونبوردينج عشان نرشّحلك أدق
+                <span className="flex shrink-0 items-center gap-1 font-bold text-primary">اعمله دلوقتي <Pencil className="h-3.5 w-3.5" /></span>
+              </Link>
+            ) : (
+              <SectionCard title="معلوماتي الشخصية" action={<Link href="/onboarding" className="flex items-center gap-1 text-[.82rem] font-bold text-primary"><Pencil className="h-3.5 w-3.5" /> تعديل</Link>}>
+                <dl className="grid gap-4 text-[.9rem]">
+                  <div>
+                    <dt className="mb-1 font-bold text-muted-foreground">المرحلة الدراسية</dt>
+                    <dd className="font-extrabold">{stageLabel ?? "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="mb-1 font-bold text-muted-foreground">اهتماماتك</dt>
+                    <dd className="flex flex-wrap gap-2">
+                      {interestLabels.length > 0
+                        ? interestLabels.map((l) => <span key={l} className="rounded-full bg-blue-tint px-3 py-1 text-[.8rem] font-bold text-primary">{l}</span>)
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="mb-1 font-bold text-muted-foreground">هدفك</dt>
+                    <dd className="font-extrabold">{goalLabel ?? "—"}</dd>
+                  </div>
+                </dl>
+              </SectionCard>
+            )}
+          </div>
+
+          {activity.length > 0 && (
+            <SectionCard title="نشاطي الأخير">
+              <ul className="flex flex-col divide-y divide-border">
+                {activity.map((e, i) => (
+                  <li key={i}>
+                    <Link href={e.href} className="flex items-center justify-between gap-3 py-3 text-[.86rem] hover:text-primary">
+                      <span className="font-semibold">{e.label}</span>
+                      <span className="shrink-0 text-[.76rem] text-muted-foreground">
+                        {new Date(e.date).toLocaleDateString("ar-EG", { day: "numeric", month: "short" })}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </SectionCard>
+          )}
+
+          <div className="flex flex-col gap-1.5 text-[.78rem]">
             <Link href="/policies" className="text-muted-foreground hover:text-primary hover:underline">السياسات</Link>
             <Link href="/account/delete" className="text-muted-foreground hover:text-destructive hover:underline">حذف الحساب</Link>
           </div>
         </div>
+      )}
 
+      {tab === "achievements" && (
         <div className="flex flex-col gap-6">
-          <div className="rounded-3xl border border-border bg-white p-6">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-[1.05rem] font-extrabold">نبذة ومهاراتك</h2>
-              {!editing && (
-                <button
-                  type="button"
-                  onClick={() => setEditing(true)}
-                  className="flex items-center gap-1 text-[.82rem] font-bold text-primary"
-                >
-                  <Pencil className="h-3.5 w-3.5" /> تعديل
-                </button>
-              )}
-            </div>
-
-            {editing ? (
-              <form action={formAction} className="flex flex-col gap-4">
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[.84rem] font-bold text-slate-600">نبذة عنك</span>
-                  <textarea
-                    name="bio"
-                    defaultValue={bio}
-                    maxLength={300}
-                    rows={3}
-                    placeholder="اكتب سطرين عن نفسك ومهتم بإيه..."
-                    className="rounded-xl border border-border p-3 text-[.9rem] outline-none focus:border-primary"
-                  />
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[.84rem] font-bold text-slate-600">مهاراتك (افصل بينهم بفاصلة)</span>
-                  <input
-                    name="skills"
-                    defaultValue={skills.join(", ")}
-                    placeholder="مثال: HTML, CSS, تصميم شعارات"
-                    className="h-11 rounded-xl border border-border px-3 text-[.9rem] outline-none focus:border-primary"
-                  />
-                </label>
-                {state.error && <p className="text-[.82rem] font-semibold text-destructive">{state.error}</p>}
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={pending}
-                    className="rounded-xl bg-primary px-5 py-2 text-[.88rem] font-extrabold text-white disabled:opacity-60"
-                  >
-                    {pending ? "لحظة..." : "احفظ"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(false)}
-                    className="rounded-xl border border-border px-5 py-2 text-[.88rem] font-bold text-slate-600"
-                  >
-                    إلغاء
-                  </button>
-                </div>
-              </form>
+          <SectionCard title="رحلتك">
+            <JourneyFull signals={journeySignals} />
+          </SectionCard>
+          <SectionCard title="إنجازاتك">
+            <AchievementBadges signals={journeySignals} />
+          </SectionCard>
+          <SectionCard title="بتساهم">
+            {givenFeedback.length === 0 ? (
+              <EmptyRow text="لسه معملتش مساهمة. سيبي ملاحظة على مشروع طالب تاني." linkHref="/projects" linkLabel="استكشفي المشاريع" />
             ) : (
-              <div className="flex flex-col gap-4">
-                <p className="text-[.92rem] leading-relaxed text-muted-foreground">
-                  {bio || "لسه معملتش نبذة عن نفسك — دوس تعديل وضيف سطرين."}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {skills.length > 0
-                    ? skills.map((s) => (
-                        <span key={s} className="rounded-full bg-blue-tint px-3 py-1 text-[.8rem] font-bold text-primary">{s}</span>
-                      ))
-                    : <span className="text-[.85rem] text-muted-foreground">لسه مضفتش مهارات.</span>}
-                </div>
+              <div className="flex flex-col gap-3">
+                {givenFeedback.map((f) => (
+                  <Link key={f.id} href={`/projects/${f.project.id}`} className="rounded-xl border border-border p-3 hover:border-primary/40">
+                    <p className="text-[.78rem] font-extrabold text-primary">{f.project.title}</p>
+                    <p className="mt-1 text-[.86rem] leading-relaxed">{f.body}</p>
+                  </Link>
+                ))}
               </div>
             )}
-          </div>
+          </SectionCard>
+        </div>
+      )}
 
-          {/* بيانات الأونبوردينج — حقيقية على الحساب دلوقتي، مش localStorage */}
-          {!stageLabel && interestLabels.length === 0 && !goalLabel ? (
-            <Link
-              href="/onboarding"
-              className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-border bg-white px-5 py-3.5 text-[.85rem] font-semibold text-muted-foreground transition-colors hover:border-primary/40"
-            >
-              كمّل بياناتك في الأونبوردينج عشان نرشّحلك أدق
-              <span className="flex shrink-0 items-center gap-1 font-bold text-primary">
-                اعمله دلوقتي <Pencil className="h-3.5 w-3.5" />
-              </span>
-            </Link>
-          ) : (
-            <div className="rounded-3xl border border-border bg-white p-6">
-              <div className="mb-5 flex items-center justify-between">
-                <h2 className="text-[1.05rem] font-extrabold">بياناتك في الأونبوردينج</h2>
-                <Link href="/onboarding" className="flex items-center gap-1 text-[.82rem] font-bold text-primary">
-                  <Pencil className="h-3.5 w-3.5" /> تعديل
-                </Link>
+      {tab === "courses" && (
+        <div className="flex flex-col gap-6">
+          <SectionCard title="بتتعلم" action={<Link href="/courses" className="text-[.82rem] font-bold text-primary">استكشف كورسات</Link>}>
+            {startedCourses.length === 0 ? (
+              <EmptyRow text="لسه مبدأتش كورس." linkHref="/courses" linkLabel="استكشف الكورسات" />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {startedCourses.map((c) => {
+                  const progress = progressByCourse[c.id];
+                  return (
+                    <Link key={c.id} href={c.href} className="flex flex-col gap-2 rounded-xl border border-border p-3 hover:border-primary/40">
+                      <div className="flex items-center gap-3">
+                        <Icon3D name={c.icon} className="h-8 w-8" />
+                        <div>
+                          <p className="text-[.88rem] font-extrabold">{c.title}</p>
+                          <p className="text-[.76rem] text-muted-foreground">{mentorById[c.mentorId]?.name}</p>
+                        </div>
+                      </div>
+                      {progress && progress.total > 0 && (
+                        <div className="flex flex-col gap-1">
+                          <p className="text-[.74rem] font-bold text-slate-500">{progress.completed} من {progress.total} دروس</p>
+                          <Progress value={Math.round((progress.completed / progress.total) * 100)} />
+                        </div>
+                      )}
+                    </Link>
+                  );
+                })}
               </div>
+            )}
+          </SectionCard>
 
-              <dl className="grid gap-4 text-[.9rem]">
-                <div>
-                  <dt className="mb-1 font-bold text-muted-foreground">المرحلة الدراسية</dt>
-                  <dd className="font-extrabold">{stageLabel ?? "—"}</dd>
-                </div>
-                <div>
-                  <dt className="mb-1 font-bold text-muted-foreground">اهتماماتك</dt>
-                  <dd className="flex flex-wrap gap-2">
-                    {interestLabels.length > 0
-                      ? interestLabels.map((l) => (
-                          <span key={l} className="rounded-full bg-blue-tint px-3 py-1 text-[.8rem] font-bold text-primary">{l}</span>
-                        ))
-                      : "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="mb-1 font-bold text-muted-foreground">هدفك</dt>
-                  <dd className="font-extrabold">{goalLabel ?? "—"}</dd>
-                </div>
-              </dl>
+          <SectionCard title="بتبني" action={<Link href="/projects/new" className="text-[.82rem] font-bold text-primary">+ مشروع جديد</Link>}>
+            {projects.length === 0 ? (
+              <EmptyRow text="لسه معملتش مشروع." linkHref="/projects/new" linkLabel="أنشئ أول مشروع" />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {projects.map((p) => (
+                  <Link key={p.id} href={`/projects/${p.id}`} className="flex items-center gap-3 rounded-xl border border-border p-3 hover:border-primary/40">
+                    <Icon3D name="hammer" className="h-8 w-8" />
+                    <div className="flex-1">
+                      <p className="text-[.88rem] font-extrabold">{p.title}</p>
+                      <p className="text-[.76rem] text-muted-foreground">{p.status === "published" ? "منشور" : "مسودّة"}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard title="اكتشفي" action={savedOpportunities.length > 0 && <Link href="/saved" className="text-[.82rem] font-bold text-primary">شوف الكل</Link>}>
+            {savedOpportunities.length === 0 ? (
+              <EmptyRow text="لسه محفظتش أي فرصة." linkHref="/opportunities" linkLabel="استكشف الفرص" />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {savedOpportunities.slice(0, 4).map((o) => (
+                  <Link key={o.id} href={`/opportunities/${o.id}`} className="flex items-center gap-3 rounded-xl border border-border p-3 hover:border-primary/40">
+                    <Icon3D name={o.icon} className="h-8 w-8" />
+                    <div>
+                      <p className="text-[.88rem] font-extrabold">{o.title}</p>
+                      <p className="text-[.76rem] text-muted-foreground">{o.organization}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        </div>
+      )}
+
+      {tab === "schedule" && (
+        <SectionCard title="جدولي">
+          {upcomingSessions.length === 0 ? (
+            <EmptyRow text="مفيش سيشنز مجدولة ليك دلوقتي." linkHref="/courses" linkLabel="استكشف الكورسات" />
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {upcomingSessions.map((s) => {
+                const date = new Date(s.scheduledAt);
+                return (
+                  <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-border p-3.5">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-tint">
+                      <Calendar className="h-5 w-5 text-primary" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[.88rem] font-extrabold">{s.title}</p>
+                      <p className="truncate text-[.76rem] text-muted-foreground">{s.courseTitle}</p>
+                    </div>
+                    <span className="shrink-0 text-[.78rem] font-bold text-primary">
+                      {date.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "short" })} · {date.toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" })}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
-        </div>
-      </div>
-
-      {/* رحلتك — نفس مكوّن الرحلة في الداشبورد */}
-      <SectionCard title="رحلتك">
-        <JourneyFull signals={journeySignals} />
-      </SectionCard>
-
-      {/* إنجازاتك — بادچات حقيقية من نفس مراحل الرحلة */}
-      <SectionCard title="إنجازاتك">
-        <AchievementBadges signals={journeySignals} />
-      </SectionCard>
-
-      {/* بتتعلم — كورساتك الحقيقية وتقدّمك فيها */}
-      <SectionCard
-        title="بتتعلم"
-        action={<Link href="/courses" className="text-[.82rem] font-bold text-primary">استكشف كورسات</Link>}
-      >
-        {startedCourses.length === 0 ? (
-          <EmptyRow text="لسه مبدأتش كورس." linkHref="/courses" linkLabel="استكشف الكورسات" />
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {startedCourses.map((c) => {
-              const progress = progressByCourse[c.id];
-              return (
-                <Link key={c.id} href={c.href} className="flex flex-col gap-2 rounded-xl border border-border p-3 hover:border-primary/40">
-                  <div className="flex items-center gap-3">
-                    <Icon3D name={c.icon} className="h-8 w-8" />
-                    <div>
-                      <p className="text-[.88rem] font-extrabold">{c.title}</p>
-                      <p className="text-[.76rem] text-muted-foreground">{mentorById[c.mentorId]?.name}</p>
-                    </div>
-                  </div>
-                  {progress && progress.total > 0 && (
-                    <div className="flex flex-col gap-1">
-                      <p className="text-[.74rem] font-bold text-slate-500">{progress.completed} من {progress.total} دروس</p>
-                      <Progress value={Math.round((progress.completed / progress.total) * 100)} />
-                    </div>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </SectionCard>
-
-      {/* بتبني — مشاريعك، مسودّات ومنشورة */}
-      <SectionCard
-        title="بتبني"
-        action={<Link href="/projects/new" className="text-[.82rem] font-bold text-primary">+ مشروع جديد</Link>}
-      >
-        {projects.length === 0 ? (
-          <EmptyRow text="لسه معملتش مشروع." linkHref="/projects/new" linkLabel="أنشئ أول مشروع" />
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {projects.map((p) => (
-              <Link key={p.id} href={`/projects/${p.id}`} className="flex items-center gap-3 rounded-xl border border-border p-3 hover:border-primary/40">
-                <Icon3D name="hammer" className="h-8 w-8" />
-                <div className="flex-1">
-                  <p className="text-[.88rem] font-extrabold">{p.title}</p>
-                  <p className="text-[.76rem] text-muted-foreground">{p.status === "published" ? "منشور" : "مسودّة"}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </SectionCard>
-
-      {/* بتساهم — ملاحظات كتبتها لمشاريع طلاب تانيين */}
-      <SectionCard title="بتساهم">
-        {givenFeedback.length === 0 ? (
-          <EmptyRow text="لسه معملتش مساهمة. سيبي ملاحظة على مشروع طالب تاني." linkHref="/projects" linkLabel="استكشفي المشاريع" />
-        ) : (
-          <div className="flex flex-col gap-3">
-            {givenFeedback.map((f) => (
-              <Link key={f.id} href={`/projects/${f.project.id}`} className="rounded-xl border border-border p-3 hover:border-primary/40">
-                <p className="text-[.78rem] font-extrabold text-primary">{f.project.title}</p>
-                <p className="mt-1 text-[.86rem] leading-relaxed">{f.body}</p>
-              </Link>
-            ))}
-          </div>
-        )}
-      </SectionCard>
-
-      {/* اكتشفي — الفرص المحفوظة، حقيقية على الحساب دلوقتي */}
-      <SectionCard
-        title="اكتشفي"
-        action={savedOpportunities.length > 0 && <Link href="/saved" className="text-[.82rem] font-bold text-primary">شوف الكل</Link>}
-      >
-        {savedOpportunities.length === 0 ? (
-          <EmptyRow text="لسه محفظتش أي فرصة." linkHref="/opportunities" linkLabel="استكشف الفرص" />
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {savedOpportunities.slice(0, 4).map((o) => (
-              <Link key={o.id} href={`/opportunities/${o.id}`} className="flex items-center gap-3 rounded-xl border border-border p-3 hover:border-primary/40">
-                <Icon3D name={o.icon} className="h-8 w-8" />
-                <div>
-                  <p className="text-[.88rem] font-extrabold">{o.title}</p>
-                  <p className="text-[.76rem] text-muted-foreground">{o.organization}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </SectionCard>
-
-      {/* نشاطك — أحداث حقيقية مرتّبة بالتاريخ */}
-      {activity.length > 0 && (
-        <SectionCard title="نشاطك">
-          <ul className="flex flex-col divide-y divide-border">
-            {activity.map((e, i) => (
-              <li key={i}>
-                <Link href={e.href} className="flex items-center justify-between gap-3 py-3 text-[.86rem] hover:text-primary">
-                  <span className="font-semibold">{e.label}</span>
-                  <span className="shrink-0 text-[.76rem] text-muted-foreground">
-                    {new Date(e.date).toLocaleDateString("ar-EG", { day: "numeric", month: "short" })}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
         </SectionCard>
       )}
+    </div>
+  );
+}
+
+function QuickStat({ icon, value, label }: { icon: React.ReactNode; value: number; label: string }) {
+  return (
+    <div className="flex flex-col gap-1.5 rounded-2xl border border-border bg-white p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-[0_18px_38px_-20px_rgba(22,24,31,.18)]">
+      <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-50 text-primary">{icon}</span>
+      <p className="text-[1.4rem] font-extrabold">{value}</p>
+      <p className="text-[.78rem] font-bold text-muted-foreground">{label}</p>
     </div>
   );
 }

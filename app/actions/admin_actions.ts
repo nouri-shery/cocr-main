@@ -43,6 +43,18 @@ export interface DeletionRequest {
   requester: { display_name: string | null } | null;
 }
 
+export interface CourseProposal {
+  id: string;
+  mentor_id: string;
+  title: string;
+  description: string;
+  track: string;
+  status: "pending" | "approved" | "rejected";
+  notes: string | null;
+  created_at: string;
+  mentor: { display_name: string | null } | null;
+}
+
 export interface ModerationLogEntry {
   id: string;
   action: string;
@@ -201,6 +213,47 @@ export async function suspendMentor(id: string, reason: string): Promise<{ error
   if (error) return { error: "حصل خطأ، جرّب تاني بعد شوية." };
   await logModeration(supabase, userId, "mentor_suspended", "mentor_application", id, reason || null);
   revalidatePath("/admin/mentor-applications");
+  return { error: null };
+}
+
+export async function listCourseProposals(): Promise<CourseProposal[]> {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const userId = await currentUserId(supabase);
+  if (!userId || !(await canReviewMentorApplications(supabase, userId))) return [];
+
+  const { data } = await supabase
+    .from("course_proposals")
+    .select("id, mentor_id, title, description, track, status, notes, created_at")
+    .order("created_at", { ascending: false });
+
+  const proposals = (data as Omit<CourseProposal, "mentor">[] | null) ?? [];
+  const names = await fetchDisplayNames(supabase, proposals.map((p) => p.mentor_id));
+  return proposals.map((p) => ({ ...p, mentor: { display_name: names[p.mentor_id] ?? null } }));
+}
+
+export async function reviewCourseProposal(
+  id: string, decision: "approved" | "rejected", note: string,
+): Promise<{ error: string | null }> {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const userId = await currentUserId(supabase);
+  if (!userId) return { error: "لازم تسجّلي دخولك." };
+  if (!(await canReviewMentorApplications(supabase, userId))) return { error: "الإجراء ده لفريق COCR بس." };
+
+  const { error } = await supabase
+    .from("course_proposals")
+    .update({
+      status: decision,
+      notes: note.trim().slice(0, 500) || null,
+      reviewed_by: userId,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) return { error: "حصل خطأ، جرّب تاني بعد شوية." };
+  await logModeration(supabase, userId, `course_proposal_${decision}`, "course_proposal", id, note || null);
+  revalidatePath("/admin/course-proposals");
   return { error: null };
 }
 

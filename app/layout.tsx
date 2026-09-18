@@ -42,6 +42,7 @@ import "./globals.css";
 import { IconSprite } from "@/components/homecomponent/icon-sprite";
 import { Navbar } from "./client/landing_client";
 import { getCurrentUser } from "@/lib/supabase/get-user";
+import { getMyMentorApplication } from "./actions/mentor_actions";
 
 const cairo = Cairo({ subsets: ["arabic", "latin"], weight: ["400","500","600","700","800","900"], variable: "--font-cairo" });
 const inter = Inter({ subsets: ["latin"], weight: ["400","500","600","700","800"], variable: "--font-inter" });
@@ -54,12 +55,16 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser().catch(() => null);
   const displayName = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? null;
+  // بيانات المينتور مطلوبة هنا بس عشان الناف بار يعرف يورّي رابط "مينتور" —
+  // نفس الدالة المستخدمة في كل صفحات المينتور، مفيش استعلام جديد
+  const mentorApplication = user ? await getMyMentorApplication().catch(() => null) : null;
+  const isApprovedMentor = mentorApplication?.status === "approved";
 
   return (
     <html lang="ar" dir="rtl" className={`${cairo.variable} ${inter.variable}`}>
       <body className="overflow-x-hidden antialiased">
         <IconSprite />
-        <Navbar isAuthenticated={!!user} displayName={displayName} />
+        <Navbar isAuthenticated={!!user} displayName={displayName} isApprovedMentor={isApprovedMentor} />
        <NextIntlClientProvider>{children}</NextIntlClientProvider>
       </body>
     </html>

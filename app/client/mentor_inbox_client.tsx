@@ -21,7 +21,7 @@ export function SubmissionReviewRow({ submission }: { submission: MentorInboxSub
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-white p-4">
+    <div className="rounded-2xl border border-border bg-white p-4 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_18px_38px_-20px_rgba(22,24,31,.18)]">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <b className="text-[.9rem] font-extrabold">{submission.student?.display_name ?? "طالب"}</b>
         <span className="text-[.76rem] text-muted-foreground">{submission.course_id}</span>

@@ -3,9 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/get-user";
 import {
   isCurrentUserStaff, isCurrentUserSuperAdmin, listMentorApplications, listReports, listDeletionRequests, listModerationLog,
+  listCourseProposals,
 } from "../actions/admin_actions";
 import { listPolicies, getPolicyBySlug } from "../actions/policy_actions";
-import { MentorApplicationRow, ReportRow, DeletionRequestRow } from "../client/admin_client";
+import { MentorApplicationRow, ReportRow, DeletionRequestRow, CourseProposalRow } from "../client/admin_client";
 import { PolicyEditorForm } from "../client/policy_admin_client";
 
 async function requireStaff() {
@@ -27,6 +28,7 @@ function AdminShell({ title, children }: { title: string; children: React.ReactN
     <main className="mx-auto min-h-screen max-w-[900px] px-6 py-10">
       <div className="mb-6 flex flex-wrap items-center gap-4 border-b border-border pb-4">
         <Link href="/admin/mentor-applications" className="text-[.85rem] font-bold text-primary hover:underline">طلبات المينتورز</Link>
+        <Link href="/admin/course-proposals" className="text-[.85rem] font-bold text-primary hover:underline">طلبات كورسات جديدة</Link>
         <Link href="/admin/reports" className="text-[.85rem] font-bold text-primary hover:underline">البلاغات</Link>
         <Link href="/admin/deletion-requests" className="text-[.85rem] font-bold text-primary hover:underline">طلبات حذف الحساب</Link>
         <Link href="/admin/moderation-log" className="text-[.85rem] font-bold text-primary hover:underline">سجل المراجعة</Link>
@@ -50,6 +52,28 @@ export async function AdminMentorApplicationsContent() {
         <div className="flex flex-col gap-3">
           {applications.map((a) => (
             <MentorApplicationRow key={a.id} application={a} />
+          ))}
+        </div>
+      )}
+    </AdminShell>
+  );
+}
+
+export async function AdminCourseProposalsContent() {
+  await requireStaff();
+  const proposals = await listCourseProposals();
+
+  return (
+    <AdminShell title="طلبات كورسات جديدة">
+      <p className="mb-4 text-[.82rem] text-muted-foreground">
+        الموافقة هنا بتسجّل الطلب كمقبول بس — مفيش نشر تلقائي للكورس في الكتالوج، ده لسه محتاج يتعمل يدوي.
+      </p>
+      {proposals.length === 0 ? (
+        <p className="text-[.9rem] text-muted-foreground">مفيش طلبات دلوقتي.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {proposals.map((p) => (
+            <CourseProposalRow key={p.id} proposal={p} />
           ))}
         </div>
       )}

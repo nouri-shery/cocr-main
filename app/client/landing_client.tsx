@@ -109,14 +109,20 @@ const AUTH_NAV_LINKS = [
   { href: "/profile", label: "بروفايلي" },
 ];
 
+/** لينك إضافي بيظهر بس للمينتور المعتمد — عشان يحس إنه "جوّا وضع تاني" في
+ * المنصة، مش نفس تجربة الطالب بالظبط */
+const MENTOR_NAV_LINK = { href: "/mentor", label: "مينتور" };
+
 export function Navbar({
-  isAuthenticated = false, displayName = null,
-}: { isAuthenticated?: boolean; displayName?: string | null } = {}) {
+  isAuthenticated = false, displayName = null, isApprovedMentor = false,
+}: { isAuthenticated?: boolean; displayName?: string | null; isApprovedMentor?: boolean } = {}) {
   const [open, setOpen] = React.useState(false);
   const pathname = usePathname();
   const isHome = pathname === "/";
   const [active, setActive] = React.useState("#top");
-  const links = isAuthenticated ? AUTH_NAV_LINKS : NAV_LINKS;
+  const links = isAuthenticated
+    ? (isApprovedMentor ? [...AUTH_NAV_LINKS, MENTOR_NAV_LINK] : AUTH_NAV_LINKS)
+    : NAV_LINKS;
 
   React.useEffect(() => {
     if (!isHome || isAuthenticated) return;
@@ -140,7 +146,7 @@ export function Navbar({
   const hashHref = (href: string) => (href.startsWith("#") && !isHome ? `/${href}` : href);
 
   return (
-    <header className="sticky top-0 z-50 bg-cream/80 pb-2 pt-5 backdrop-blur-md">
+    <header className="sticky top-0 z-50 bg-sugar-white/75 pb-2 pt-5 backdrop-blur-md">
       <div className="mx-auto max-w-[1200px] px-7">
         <div className="flex h-[66px] items-center gap-[18px] rounded-full border border-border bg-white ps-5 pe-2.5 shadow-[0_14px_34px_-22px_rgba(22,24,31,.5)]">
           <Link href={hashHref("#top")} className="flex items-center gap-3 font-display text-[1.3rem] font-extrabold tracking-tight">

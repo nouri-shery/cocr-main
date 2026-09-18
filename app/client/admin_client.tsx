@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import {
-  reviewMentorApplication, resolveReport, suspendMentor, resolveDeletionRequest,
-  type MentorApplication, type Report, type DeletionRequest,
+  reviewMentorApplication, resolveReport, suspendMentor, resolveDeletionRequest, reviewCourseProposal,
+  type MentorApplication, type Report, type DeletionRequest, type CourseProposal,
 } from "../actions/admin_actions";
 import { cn } from "@/lib/utils";
 
@@ -102,6 +102,60 @@ export function MentorApplicationRow({ application }: { application: MentorAppli
           >
             علّقي حساب المينتور
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function CourseProposalRow({ proposal }: { proposal: CourseProposal }) {
+  const [note, setNote] = React.useState(proposal.notes ?? "");
+  const [pending, startTransition] = React.useTransition();
+  const [status, setStatus] = React.useState(proposal.status);
+
+  const decide = (decision: "approved" | "rejected") => {
+    startTransition(async () => {
+      const res = await reviewCourseProposal(proposal.id, decision, note);
+      if (!res.error) setStatus(decision);
+    });
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-white p-4">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <b className="text-[.95rem] font-extrabold">{proposal.title}</b>
+        <span className={cn("rounded-full px-3 py-1 text-[.76rem] font-bold", STATUS_STYLE[status])}>{status}</span>
+      </div>
+      <p className="text-[.85rem] text-muted-foreground">
+        المينتور: <b className="text-foreground">{proposal.mentor?.display_name ?? "مينتور"}</b> · التراك: <b className="text-foreground">{proposal.track}</b>
+      </p>
+      <p className="mt-1 whitespace-pre-wrap text-[.85rem] text-muted-foreground">{proposal.description}</p>
+
+      {status === "pending" && (
+        <div className="mt-3 flex flex-col gap-2">
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="ملاحظة (اختياري)"
+            rows={2}
+            className="rounded-xl border border-border p-2.5 text-[.85rem] outline-none focus:border-primary"
+          />
+          <div className="flex gap-2">
+            <button
+              disabled={pending}
+              onClick={() => decide("approved")}
+              className="rounded-xl bg-green px-4 py-2 text-[.85rem] font-bold text-white disabled:opacity-60"
+            >
+              موافقة
+            </button>
+            <button
+              disabled={pending}
+              onClick={() => decide("rejected")}
+              className="rounded-xl border border-border px-4 py-2 text-[.85rem] font-bold text-slate-600 disabled:opacity-60"
+            >
+              رفض
+            </button>
+          </div>
         </div>
       )}
     </div>

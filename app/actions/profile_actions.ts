@@ -16,6 +16,7 @@ export interface Profile {
   interests: string[];
   goal: string | null;
   grade_or_education_stage: string | null;
+  gender: "male" | "female" | null;
 }
 
 export interface Enrollment {
@@ -23,7 +24,7 @@ export interface Enrollment {
   started_at: string;
 }
 
-const PROFILE_COLUMNS = "id, display_name, bio, skills, interests, goal, grade_or_education_stage";
+const PROFILE_COLUMNS = "id, display_name, bio, skills, interests, goal, grade_or_education_stage, gender";
 
 export async function getMyProfile(): Promise<Profile | null> {
   const cookieStore = await cookies();
@@ -39,15 +40,16 @@ export async function getMyProfile(): Promise<Profile | null> {
 
   return data ?? {
     id: user.id, display_name: null, bio: null, skills: [],
-    interests: [], goal: null, grade_or_education_stage: null,
+    interests: [], goal: null, grade_or_education_stage: null, gender: null,
   };
 }
 
-/** بتحفظ بيانات الأونبوردينج (المرحلة، الاهتمامات، الهدف) على الحساب فعليًا
- * — بدل localStorage اللي بيتمسح مع أي جهاز جديد. نفس الأعمدة الحقيقية
- * الموجودة بالفعل في profiles، الـ GRANT بس اتوسّع عليها في 0006 */
+/** بتحفظ بيانات الأونبوردينج (المرحلة، الاهتمامات، الهدف، وشكل الأفاتار
+ * الاختياري) على الحساب فعليًا — بدل localStorage اللي بيتمسح مع أي جهاز
+ * جديد. gender اختياري بالكامل (nullable) — لو الطالب سابه فاضي بيفضل null
+ * ومفيش أفاتار توضيحي بيتفرض، initials بس */
 export async function saveOnboardingData(
-  stage: string | null, interests: string[], goal: string | null,
+  stage: string | null, interests: string[], goal: string | null, gender: "male" | "female" | null,
 ): Promise<{ error: string | null }> {
   const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
@@ -60,6 +62,7 @@ export async function saveOnboardingData(
       grade_or_education_stage: stage,
       interests,
       goal,
+      gender,
       updated_at: new Date().toISOString(),
     })
     .eq("id", user.id);

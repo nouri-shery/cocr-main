@@ -122,6 +122,7 @@ export async function getCoursemateSubmissionsForLesson(lessonId: string): Promi
 
 export interface MentorInboxSubmission extends Submission {
   course_category: string;
+  student_id: string;
   student: { display_name: string | null } | null;
   feedback_given: boolean;
 }
@@ -150,8 +151,8 @@ export async function getSubmissionsForMentor(): Promise<MentorInboxSubmission[]
 
   const reviewedIds = new Set((myFeedback ?? []).map((f) => f.submission_id));
 
-  return (submissions as (Omit<MentorInboxSubmission, "feedback_given" | "student"> & { student_id: string })[]).map(({ student_id, ...s }) => ({
-    ...s, student: { display_name: names[student_id] ?? null }, feedback_given: reviewedIds.has(s.id),
+  return (submissions as (Omit<MentorInboxSubmission, "feedback_given" | "student"> & { student_id: string })[]).map((s) => ({
+    ...s, student: { display_name: names[s.student_id] ?? null }, feedback_given: reviewedIds.has(s.id),
   }));
 }
 
@@ -293,6 +294,28 @@ export async function saveGraduationSubmission(
   if (error) return { error: "حصل خطأ، جرّب تاني بعد شوية." };
   revalidatePath(`/courses/${courseId}`);
   return { error: null };
+}
+
+export interface MentorRatingSummary {
+  count: number;
+  average: number | null;
+}
+
+/** متوسط تقييم الطلاب الحقيقي للمينتور الحالي — من mentor_ratings نفسه اللي
+ * الطالب بيملاه بعد ما ياخد فيدباك (rateMentor فوق). مفيش رقم افتراضي، لو
+ * مفيش تقييمات لسه بيرجع average: null بدل ما يظهر 0 أو 5 وهمي */
+export async function getMyMentorRatingSummary(): Promise<MentorRatingSummary> {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { count: 0, average: null };
+
+  const { data } = await supabase.from("mentor_ratings").select("rating").eq("mentor_id", user.id);
+  const ratings = data ?? [];
+  if (ratings.length === 0) return { count: 0, average: null };
+
+  const average = ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length;
+  return { count: ratings.length, average: Math.round(average * 10) / 10 };
 }
 
 export async function submitMentorFeedback(

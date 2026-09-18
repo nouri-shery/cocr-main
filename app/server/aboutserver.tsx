@@ -12,7 +12,7 @@ import type { IconName } from "../types/types";
 /* ================================================================== */
 function AboutHero() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-[#F7F2E8] to-cream pb-[90px] pt-20">
+    <section className="relative overflow-hidden bg-gradient-to-b from-blue-tint to-cream pb-[90px] pt-20">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] mx-auto max-w-[46em] px-7 text-center">
         <Reveal as="h1" className="mb-5 text-[clamp(2.1rem,4.6vw,3.4rem)] font-black leading-[1.22] tracking-[-.02em]">

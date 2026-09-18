@@ -56,7 +56,7 @@ const ACCENT_CLASS: Record<Accent, string> = {
 /* ================================================================== */
 export function Hero() {
   return (
-    <section id="top" className="relative overflow-hidden bg-gradient-to-b from-[#F7F2E8] to-cream pb-[100px] pt-16">
+    <section id="top" className="relative overflow-hidden bg-gradient-to-b from-blue-tint to-cream pb-[100px] pt-16">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] mx-auto grid max-w-[1160px] items-center gap-12 px-7 lg:grid-cols-[1.05fr_.95fr] lg:gap-[72px]">
         <div>

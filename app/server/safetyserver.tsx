@@ -10,7 +10,7 @@ import { Icon3D } from "@/components/homecomponent/icon-sprite";
 /* ================================================================== */
 function SafetyHero() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-[#F7F2E8] to-cream pb-[90px] pt-20">
+    <section className="relative overflow-hidden bg-gradient-to-b from-blue-tint to-cream pb-[90px] pt-20">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] mx-auto max-w-[46em] px-7 text-center">
         <Reveal className="mb-5 flex justify-center">

@@ -17,7 +17,7 @@ export default function RegisterPage() {
   const [state, formAction, pending] = useActionState(signUpWithEmail, initialState);
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-[#F7F2E8] to-cream px-6 py-12">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-blue-tint to-cream px-6 py-12">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] w-full max-w-[440px]">
         <Link href="/" className="mb-8 flex items-center justify-center gap-3 font-display text-[1.3rem] font-extrabold tracking-tight">

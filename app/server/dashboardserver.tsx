@@ -6,6 +6,7 @@ import { getMyEnrollments } from "../actions/profile_actions";
 import { getMyProjects, getMyRecentFeedback, getMyGivenFeedbackCount } from "../actions/projects_actions";
 import { getMyProgressForCourses, getNextLessonForCourse } from "../actions/lessons_actions";
 import { getMyMentorApplication } from "../actions/mentor_actions";
+import { getUpcomingSessionForCourses, getUpcomingSessionsListForCourses, type CourseSession } from "../actions/course_sessions_actions";
 import type { JourneySignals } from "../client/journey_client";
 import { SiteFooter } from "./landingserver";
 import { getCurrentUser } from "@/lib/supabase/get-user";
@@ -13,6 +14,16 @@ import { AppPageHeader } from "@/components/homecomponent/app-page-header";
 
 export interface NextMove {
   label: string;
+  href: string;
+  icon: "compass" | "rocket" | "hammer";
+}
+
+export interface UpcomingSessionCard {
+  id: string;
+  title: string;
+  courseTitle: string;
+  scheduledAt: string;
+  zoomLink: string | null;
   href: string;
 }
 
@@ -60,19 +71,42 @@ export async function DashboardPageContent() {
   // Your Next Moves — بيتغيّر حسب حالة الطالب الحقيقية، مش قائمة ثابتة
   const nextMoves: NextMove[] = [];
   if (startedCoursesWithProgress.length === 0) {
-    nextMoves.push({ label: "اكتشف كورس", href: "/courses" });
+    nextMoves.push({ label: "اكتشف كورس", href: "/courses", icon: "compass" });
   } else {
     const withNextLesson = startedCoursesWithProgress.find((c) => c.nextLesson);
     if (withNextLesson) {
-      nextMoves.push({ label: "كمّل الدرس", href: `/courses/${withNextLesson.course.id}/lessons/${withNextLesson.nextLesson!.id}` });
+      nextMoves.push({ label: "كمّل الدرس", href: `/courses/${withNextLesson.course.id}/lessons/${withNextLesson.nextLesson!.id}`, icon: "rocket" });
     }
   }
   if (projects.length === 0) {
-    nextMoves.push({ label: "ابنِ أول مشروع", href: "/projects/new" });
+    nextMoves.push({ label: "ابنِ أول مشروع", href: "/projects/new", icon: "hammer" });
   } else {
     const draft = projects.find((p) => p.status === "draft");
-    nextMoves.push(draft ? { label: "كمّل مشروعك", href: `/projects/${draft.id}` } : { label: "افتح مشاريعك", href: "/projects" });
+    nextMoves.push(draft
+      ? { label: "كمّل مشروعك", href: `/projects/${draft.id}`, icon: "hammer" }
+      : { label: "افتح مشاريعك", href: "/projects", icon: "hammer" });
   }
+
+  // أقرب سيشن لايف جاي — حقيقي من course_sessions، بيظهر بس لو فعلاً محجوز
+  // سيشن جاي في كورس الطالب متسجّل فيه (RLS نفسها بتاعة صفحة الكورس)
+  const [upcomingSessionRow, upcomingSessionsRows]: [CourseSession | null, CourseSession[]] = await Promise.all([
+    getUpcomingSessionForCourses(startedCourseIds),
+    getUpcomingSessionsListForCourses(startedCourseIds, 6),
+  ]);
+  const toCard = (row: CourseSession): UpcomingSessionCard => ({
+    id: row.id,
+    title: row.title,
+    courseTitle: courses.find((c) => c.id === row.course_id)?.title ?? "",
+    scheduledAt: row.scheduled_at,
+    zoomLink: row.zoom_link,
+    href: `/courses/${row.course_id}`,
+  });
+  const upcomingSession: UpcomingSessionCard | null = upcomingSessionRow ? toCard(upcomingSessionRow) : null;
+  // باقي السيشنز الجاية — مستثنى منها أقرب واحدة اللي ظاهرة أصلاً كـ"حاجة
+  // مستنياك" فوق، عشان الجدول ده يكمّل مش يكرر
+  const otherUpcomingSessions: UpcomingSessionCard[] = upcomingSessionsRows
+    .filter((row) => row.id !== upcomingSessionRow?.id)
+    .map(toCard);
 
   // رحلتك في COCR — نفس المفهوم المستخدم في البروفايل (journey_client)،
   // إشارات حقيقية بس، مفيش XP ولا ترتيب مُلفَّق
@@ -83,9 +117,16 @@ export async function DashboardPageContent() {
     isApprovedMentor: mentorApplication?.status === "approved",
   };
 
+  // أرقامك الحقيقية — بيانات جبناها فعلاً فوق، مفيش حساب جديد ولا رقم مُلفَّق
+  const stats = {
+    enrollments: enrollments.length,
+    publishedProjects: projects.filter((p) => p.status === "published").length,
+    feedbackGiven: givenFeedbackCount,
+  };
+
   return (
     <>
-    <main className="relative overflow-hidden bg-cream pb-[100px] pt-[52px]">
+    <main className="relative overflow-hidden bg-sugar-white pb-[100px] pt-[52px]">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] mx-auto max-w-[1160px] px-7">
         <AppPageHeader title={`أهلًا يا ${firstName} 👋`} context="دي رحلتك في COCR — إيه اللي عملته وإيه الخطوة الجاية." />
@@ -96,6 +137,9 @@ export async function DashboardPageContent() {
           startedCourses={startedCoursesWithProgress}
           currentLearning={currentLearning}
           nextMoves={nextMoves}
+          upcomingSession={upcomingSession}
+          otherUpcomingSessions={otherUpcomingSessions}
+          stats={stats}
           journeySignals={journeySignals}
           projects={projects}
           recentFeedback={recentFeedback}

@@ -12,7 +12,8 @@ import {
   type StageId, type InterestId, type GoalId,
 } from "../lib/onboarding";
 
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 4;
+type GenderId = "male" | "female";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -20,13 +21,15 @@ export default function OnboardingPage() {
   const [stage, setStage] = React.useState<StageId | null>(null);
   const [interests, setInterests] = React.useState<InterestId[]>([]);
   const [goal, setGoal] = React.useState<GoalId | null>(null);
+  const [gender, setGender] = React.useState<GenderId | null>(null);
   const [finishing, setFinishing] = React.useState(false);
 
   const toggleInterest = (id: InterestId) => {
     setInterests((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
-  const canNext = (step === 1 && stage !== null) || (step === 2 && interests.length > 0) || (step === 3 && goal !== null);
+  // خطوة 4 (الأفاتار) اختيارية بالكامل — مينفعش توقف الطالب
+  const canNext = (step === 1 && stage !== null) || (step === 2 && interests.length > 0) || (step === 3 && goal !== null) || step === 4;
 
   const handleNext = async () => {
     if (step < TOTAL_STEPS) { setStep((s) => s + 1); return; }
@@ -34,9 +37,9 @@ export default function OnboardingPage() {
     try {
       const { data } = await createClient().auth.getUser();
       if (data.user) {
-        // بيانات حقيقية على الحساب (profiles.interests/goal/grade_or_education_stage)
+        // بيانات حقيقية على الحساب (profiles.interests/goal/grade_or_education_stage/gender)
         // — مش localStorage، فبتفضل موجودة عبر أي جهاز أو متصفح
-        await saveOnboardingData(stage, interests, goal);
+        await saveOnboardingData(stage, interests, goal, gender);
       }
     } catch {
       /* لو حصل خطأ، نكمل التنقل عادي — المستخدم يقدر يعدّل من البروفايل تاني */
@@ -56,7 +59,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-[#F7F2E8] to-cream px-6 py-12">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-blue-tint to-cream px-6 py-12">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] w-full max-w-[560px]">
         <div className="mb-6 flex items-center gap-2">
@@ -131,6 +134,41 @@ export default function OnboardingPage() {
                   </button>
                 ))}
               </div>
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+              <h1 className="mb-1.5 text-[1.3rem] font-extrabold">شكل صورتك الشخصية</h1>
+              <p className="mb-6 text-[.88rem] text-muted-foreground">اختياري بالكامل — ده بس عشان نديك أفاتار يمثلك بدل الحروف الأولى من اسمك.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setGender("female")}
+                  aria-pressed={gender === "female"}
+                  className={cn(
+                    "flex min-h-[64px] items-center justify-center rounded-2xl border-2 px-4 text-center text-[.94rem] font-bold transition-all",
+                    gender === "female" ? "border-primary bg-blue-tint text-primary" : "border-border text-slate-600 hover:border-slate-400",
+                  )}
+                >
+                  بنت
+                </button>
+                <button
+                  onClick={() => setGender("male")}
+                  aria-pressed={gender === "male"}
+                  className={cn(
+                    "flex min-h-[64px] items-center justify-center rounded-2xl border-2 px-4 text-center text-[.94rem] font-bold transition-all",
+                    gender === "male" ? "border-primary bg-blue-tint text-primary" : "border-border text-slate-600 hover:border-slate-400",
+                  )}
+                >
+                  ولد
+                </button>
+              </div>
+              <button
+                onClick={() => setGender(null)}
+                className="mt-3 text-[.84rem] font-bold text-muted-foreground hover:text-foreground"
+              >
+                تفضّل تسيبها من غيرها؟ كمّل من غير أفاتار
+              </button>
             </>
           )}
 

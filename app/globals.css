@@ -1,7 +1,10 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: hsl(38 40% 96%);
+  /* أبيض سكري — بديل البيج/الكريم الدافئ على مستوى المنصة كلها، مش صفحة
+     واحدة. غيّرنا التوكنز الأساسية (background/secondary/muted/border) مع
+     بعض عشان مفيش خلفية بيضا وحدود بيج جنبها — كله بارد ومتّسق */
+  --color-background: hsl(228 100% 99%);
   --color-foreground: hsl(227 18% 10%);
   --color-card: hsl(0 0% 100%);
   --color-card-foreground: hsl(227 18% 10%);
@@ -9,21 +12,21 @@
   --color-popover-foreground: hsl(227 18% 10%);
   --color-primary: hsl(226 73% 44%);
   --color-primary-foreground: hsl(0 0% 100%);
-  --color-secondary: hsl(39 33% 92%);
+  --color-secondary: hsl(228 35% 95%);
   --color-secondary-foreground: hsl(227 18% 10%);
-  --color-muted: hsl(39 33% 92%);
-  --color-muted-foreground: hsl(36 5% 46%);
+  --color-muted: hsl(228 35% 95%);
+  --color-muted-foreground: hsl(225 8% 46%);
   --color-accent: hsl(38 80% 57%);
   --color-accent-foreground: hsl(30 60% 12%);
   --color-destructive: hsl(12 71% 55%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  --color-border: hsl(38 27% 87%);
-  --color-input: hsl(38 27% 87%);
+  --color-border: hsl(225 24% 90%);
+  --color-input: hsl(225 24% 90%);
   --color-ring: hsl(226 73% 44%);
 
   /* توكنز COCR الإضافية */
-  --color-cream: #FAF7F2;
-  --color-sand: #F3EEE4;
+  --color-cream: #FAFBFF;
+  --color-sand: #F1F3FC;
   --color-gold-600: #B8801F;
   --color-gold-50: #FBF1DC;
   --color-gold: #E9A93C;
@@ -32,6 +35,9 @@
   --color-blue-tint: #EFF1FC;
   --color-blue-50: #EEF2FE;
   --color-blue-700: #16349B;
+  /* alias — نفس لون --color-cream دلوقتي، اتسابت عشان الصفحات اللي بتستخدم
+     bg-sugar-white صراحة متتلمسش */
+  --color-sugar-white: #FAFBFF;
 
   --color-slate-300: #CFC9BD;
   --color-slate-400: #A6A199;
@@ -83,10 +89,11 @@
   mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
 }
 
+/* المؤثر الغامق القديم اتشال — كان مصمم للخلفية الكريمية الدافئة القديمة،
+   وعلى الأبيض السكري الجديد كان بيبان تأثير غامق مش لطيف. سيبنا الـutility
+   موجود (مستخدم في JSX كتير) بس فضّيناه بدل ما نلمس كل ملف */
 @utility pattern-glow {
-  background:
-    radial-gradient(620px 340px at 88% 6%, rgba(30,69,196,.12), transparent 62%),
-    radial-gradient(520px 300px at 6% 94%, rgba(79,190,139,.13), transparent 60%);
+  background: none;
 }
 
 @utility pattern-on-dark {
@@ -115,4 +122,25 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .route-path { stroke-dashoffset: 0 !important; }
+}
+
+/* مساحة المينتور — دخول متدرّج للكروت + نبضة خفيفة للأيقونة الزخرفية */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-up {
+    animation: fade-up .5s cubic-bezier(.2,.8,.2,1) both;
+  }
+  @keyframes soft-pulse {
+    0%, to { transform: scale(1); opacity: .06; }
+    50% { transform: scale(1.04); opacity: .1; }
+  }
+  .animate-soft-pulse {
+    animation: soft-pulse 4.5s ease-in-out infinite;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up { opacity: 1; transform: none; }
 }

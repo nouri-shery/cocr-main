@@ -6,10 +6,11 @@ import { AppPageHeader } from "@/components/homecomponent/app-page-header";
 import { getCourses, getMentors } from "../actions/landing_page_actions";
 import { getOpportunities } from "../actions/opportunities_actions";
 import { getMyProfile, getMyEnrollments } from "../actions/profile_actions";
-import { getMyProjects, getMyGivenFeedback } from "../actions/projects_actions";
+import { getMyProjects, getMyGivenFeedback, getMyGivenFeedbackCount } from "../actions/projects_actions";
 import { getMyMentorApplication } from "../actions/mentor_actions";
 import { getMyProgressForCourses } from "../actions/lessons_actions";
 import { getMySavedItemIds } from "../actions/saved_actions";
+import { getUpcomingSessionsListForCourses } from "../actions/course_sessions_actions";
 import type { JourneySignals } from "../client/journey_client";
 import type { ActivityEvent } from "../client/profile_client";
 
@@ -19,7 +20,7 @@ export async function ProfilePageContent() {
 
   const [
     courses, mentors, opportunities, profile, enrollments, projects,
-    mentorApplication, givenFeedback, savedOpportunityIds,
+    mentorApplication, givenFeedback, givenFeedbackCount, savedOpportunityIds,
   ] = await Promise.all([
     getCourses(),
     getMentors(),
@@ -29,6 +30,7 @@ export async function ProfilePageContent() {
     getMyProjects(),
     getMyMentorApplication(),
     getMyGivenFeedback(5),
+    getMyGivenFeedbackCount(),
     getMySavedItemIds("opportunity"),
   ]);
 
@@ -43,6 +45,20 @@ export async function ProfilePageContent() {
     ? await getMyProgressForCourses(startedCourses.map((c) => c.id))
     : {};
   const savedOpportunities = opportunities.filter((o) => savedOpportunityIds.includes(o.id));
+
+  // جدولي — سيشنز حقيقية جاية للكورسات اللي بدأتها، نفس البيانات المستخدمة
+  // في الداشبورد
+  const upcomingSessionRows = await getUpcomingSessionsListForCourses(startedCourses.map((c) => c.id), 8);
+  const upcomingSessions = upcomingSessionRows.map((s) => ({
+    id: s.id,
+    title: s.title,
+    courseTitle: courses.find((c) => c.id === s.course_id)?.title ?? "",
+    scheduledAt: s.scheduled_at,
+    zoomLink: s.zoom_link,
+  }));
+
+  // "عضو منذ" — حقيقي من auth.users.created_at، مفيش جدول جديد ولا تخمين
+  const memberSince = user.created_at;
 
   const isApprovedMentor = mentorApplication?.status === "approved";
   const journeySignals: JourneySignals = {
@@ -74,7 +90,7 @@ export async function ProfilePageContent() {
 
   return (
     <>
-    <main className="relative overflow-hidden bg-cream pb-[100px] pt-[52px]">
+    <main className="relative overflow-hidden bg-sugar-white pb-[100px] pt-[52px]">
       <span aria-hidden className="pattern-glow pointer-events-none absolute inset-0" />
       <div className="relative z-[2] mx-auto max-w-[1160px] px-7">
         <AppPageHeader title="بياناتك" context="الملف الشخصي — رحلتك وشغلك ومساهماتك في COCR." />
@@ -85,6 +101,8 @@ export async function ProfilePageContent() {
           bio={bio}
           skills={skills}
           stage={profile?.grade_or_education_stage ?? null}
+          gender={profile?.gender ?? null}
+          userId={user.id}
           interests={profile?.interests ?? []}
           goal={profile?.goal ?? null}
           startedCourses={startedCourses}
@@ -92,7 +110,10 @@ export async function ProfilePageContent() {
           mentorById={mentorById}
           projects={projects}
           givenFeedback={givenFeedback}
+          givenFeedbackCount={givenFeedbackCount}
           savedOpportunities={savedOpportunities}
+          upcomingSessions={upcomingSessions}
+          memberSince={memberSince}
           journeySignals={journeySignals}
           activity={activity}
           isApprovedMentor={isApprovedMentor}

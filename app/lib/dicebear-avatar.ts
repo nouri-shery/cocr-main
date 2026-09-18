@@ -1,36 +1,35 @@
-/** أفاتار توضيحي بس — نسخة تصميم مبدئية قبل ما نقرر نظام الصور الحقيقي.
- * DiceBear بيرجّع SVG جاهز على أساس seed ثابت (نفس الاسم = نفس الأفاتار
- * دايمًا)، بمزاج شعر/لبس مختلف حسب بنت/ولد. مفيش تخزين ولا API key.
- * أسماء الخيارات (top/clothing) لازم تتأكد من https://api.dicebear.com/9.x/avataaars/schema.json
- * — القيم دي مش من الذاكرة، اتأكد منها فعليًا لأن نسخ قديمة من الـ API كانت
- * بأسماء مختلفة (longHairCurly.. بدل curly) وكانت بترجع 400. */
-const FEMALE_TOP = ["bob", "bun", "curly", "longButNotTooLong", "straight02", "bigHair"];
-const FEMALE_CLOTHING = ["blazerAndSweater", "collarAndSweater", "shirtScoopNeck"];
-const MALE_TOP = ["shortFlat", "shortRound", "shortWaved", "shaggy", "theCaesar", "shavedSides"];
-const MALE_CLOTHING = ["hoodie", "shirtCrewNeck", "graphicShirt"];
+/** أفاتار توضيحي بس — لسه مش صورة حقيقية، بس بدل الحروف الأولى من الاسم.
+ * DiceBear بيرجّع SVG جاهز على أساس seed ثابت (نفس المستخدم = نفس الأفاتار
+ * دايمًا)، بمزاج شعر مختلف حسب بنت/ولد. مفيش تخزين ولا API key.
+ *
+ * غيّرنا من "avataaars" (شكل شبه واقعي) لـ "big-smile" — ستايل رسم مسطّح
+ * كيوت ومريح، مناسب أكتر لطلاب المرحلة العمرية دي وبيبان حلو حتى وهو
+ * متقصوص صغير في دايرة. أسماء الخيارات لازم تتأكد منها فعليًا من
+ * https://api.dicebear.com/9.x/big-smile/schema.json مش من الذاكرة —
+ * إصدارات مختلفة من الـAPI بتستخدم أسماء مختلفة وبترجع 400 لو غلط. */
+const FEMALE_HAIR = ["wavyBob", "curlyBob", "braids", "bunHair", "froBun", "bangs"];
+const MALE_HAIR = ["shortHair", "bowlCutHair", "shavedHead", "straightHair", "curlyShortHair", "halfShavedHead"];
 
-// وشوش مبتسمة/مرتاحة بس — مقصودة عشان الأفاتار يبان مرحّب بيه، مش تعبير
-// غريب أو عصبي عشوائي (mouth/eyes/eyebrows كلهم بيتحددوا بالـseed، لو
-// سبناهم على الافتراضي بيطلع تعبيرات زي "concerned"/"angry" عشوائي)
-const HAPPY_MOUTH = ["smile", "twinkle"];
-const HAPPY_EYES = ["happy", "default", "wink"];
-const HAPPY_EYEBROWS = ["default", "defaultNatural", "raisedExcitedNatural"];
+// وشوش مبتسمة بس — مقصودة عشان الأفاتار يبان مرحّب بيه ومبسوط، مش تعبير
+// غريب أو زعلان عشوائي (لو سبنا القيم دي على الافتراضي بيطلع "sad"/"angry"
+// أو "confused" عشوائي حسب الـseed)
+const HAPPY_EYES = ["cheery", "starstruck", "winking", "normal"];
+const HAPPY_MOUTH = ["openedSmile", "teethSmile", "gapSmile", "kawaii"];
+
+// خلفية دايرة الأفاتار بألوان هوية كوكر السوفت (أزرق فاتح/دهبي فاتح/أخضر
+// فاتح) بدل الرمادي الافتراضي، عشان يحس إنه جزء من المنصة مش عنصر مستعار
+const BACKGROUND_COLORS = ["EFF1FC", "FBF1DC", "EAF6EF", "EEF2FE"];
 
 export function avatarUrl(seed: string, gender: "male" | "female"): string {
-  const top = gender === "female" ? FEMALE_TOP : MALE_TOP;
-  const clothing = gender === "female" ? FEMALE_CLOTHING : MALE_CLOTHING;
+  const hair = gender === "female" ? FEMALE_HAIR : MALE_HAIR;
   const params = new URLSearchParams();
   params.set("seed", seed);
-  params.set("radius", "50");
-  top.forEach((t) => params.append("top[]", t));
-  clothing.forEach((c) => params.append("clothing[]", c));
-  HAPPY_MOUTH.forEach((m) => params.append("mouth[]", m));
+  hair.forEach((h) => params.append("hair[]", h));
   HAPPY_EYES.forEach((e) => params.append("eyes[]", e));
-  HAPPY_EYEBROWS.forEach((b) => params.append("eyebrows[]", b));
-  // ديفولت الـ API بيحط شنب/دقن بنسبة 10% عشوائي — بغض النظر عن الجنس، وده
-  // كان بيطلع غلط على أفاتارات بنات. قفلناه خالص، ونفس الكلام للإكسسوارات
-  // العشوائية (نضارات...) عشان الأفاتار يفضل واضح وبسيط
-  params.set("facialHairProbability", "0");
+  HAPPY_MOUTH.forEach((m) => params.append("mouth[]", m));
+  BACKGROUND_COLORS.forEach((c) => params.append("backgroundColor[]", c));
+  // ديفولت الـ API بيحط إكسسوار عشوائي (شنب/نضارة/تاج...) بنسبة 50%،
+  // بغض النظر عن الجنس — قفلناه خالص عشان الأفاتار يفضل واضح وبسيط
   params.set("accessoriesProbability", "0");
-  return `https://api.dicebear.com/9.x/avataaars/svg?${params.toString()}`;
+  return `https://api.dicebear.com/9.x/big-smile/svg?${params.toString()}`;
 }

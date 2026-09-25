@@ -3,10 +3,12 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/get-user";
 import {
   isCurrentUserStaff, isCurrentUserSuperAdmin, listMentorApplications, listReports, listDeletionRequests, listModerationLog,
-  listCourseProposals, listPendingProjectReviews,
+  listCourseProposals, listPendingProjectReviews, listOpportunitiesInReview,
 } from "../actions/admin_actions";
 import { listPolicies, getPolicyBySlug } from "../actions/policy_actions";
-import { MentorApplicationRow, ReportRow, DeletionRequestRow, CourseProposalRow, ProjectReviewQueue } from "../client/admin_client";
+import {
+  MentorApplicationRow, ReportRow, DeletionRequestRow, CourseProposalCard, ProjectReviewQueue, OpportunityReviewQueue,
+} from "../client/admin_client";
 import { PolicyEditorForm } from "../client/policy_admin_client";
 
 async function requireStaff() {
@@ -30,6 +32,7 @@ function AdminShell({ title, children }: { title: string; children: React.ReactN
         <Link href="/admin/mentor-applications" className="text-[.85rem] font-bold text-primary hover:underline">طلبات المينتورز</Link>
         <Link href="/admin/course-proposals" className="text-[.85rem] font-bold text-primary hover:underline">طلبات كورسات جديدة</Link>
         <Link href="/admin/projects" className="text-[.85rem] font-bold text-primary hover:underline">مشاريع التخرّج</Link>
+        <Link href="/admin/opportunities" className="text-[.85rem] font-bold text-primary hover:underline">الفرص</Link>
         <Link href="/admin/reports" className="text-[.85rem] font-bold text-primary hover:underline">البلاغات</Link>
         <Link href="/admin/deletion-requests" className="text-[.85rem] font-bold text-primary hover:underline">طلبات حذف الحساب</Link>
         <Link href="/admin/moderation-log" className="text-[.85rem] font-bold text-primary hover:underline">سجل المراجعة</Link>
@@ -70,11 +73,11 @@ export async function AdminCourseProposalsContent() {
         الموافقة هنا بتسجّل الطلب كمقبول بس — مفيش نشر تلقائي للكورس في الكتالوج، ده لسه محتاج يتعمل يدوي.
       </p>
       {proposals.length === 0 ? (
-        <p className="text-[.9rem] text-muted-foreground">مفيش طلبات دلوقتي.</p>
+        <p className="text-[.9rem] text-muted-foreground">مفيش كورسات مستنية مراجعة دلوقتي.</p>
       ) : (
         <div className="flex flex-col gap-3">
           {proposals.map((p) => (
-            <CourseProposalRow key={p.id} proposal={p} />
+            <CourseProposalCard key={p.id} proposal={p} />
           ))}
         </div>
       )}
@@ -92,6 +95,20 @@ export async function AdminProjectReviewsContent() {
         الموافقة هنا بتنشر المشروع فورًا في /projects كـ&quot;مشروع تخرّج موثّق&quot;. الرفض بيرجّعه للطالب بسبب واضح، وهو يقدر يعدّل ويبعته تاني.
       </p>
       <ProjectReviewQueue projects={projects} />
+    </AdminShell>
+  );
+}
+
+export async function AdminOpportunitiesContent() {
+  await requireStaff();
+  const opportunities = await listOpportunitiesInReview();
+
+  return (
+    <AdminShell title="الفرص">
+      <p className="mb-4 text-[.82rem] text-muted-foreground">
+        الباحث بيقدّم الفرصة من بحث → التحقق من المصدر → مراجعة نهائية. الموافقة النهائية لازم تكون من حد مختلف عن الباحث، وبتنشرها فورًا في /opportunities موثّقة.
+      </p>
+      <OpportunityReviewQueue opportunities={opportunities} />
     </AdminShell>
   );
 }

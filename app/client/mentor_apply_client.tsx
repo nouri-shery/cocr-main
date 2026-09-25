@@ -10,6 +10,16 @@ const TRACKS = [
   { id: "embedded", label: "Embedded" },
 ];
 
+const DAYS = [
+  { id: "saturday", label: "سبت" },
+  { id: "sunday", label: "حد" },
+  { id: "monday", label: "اتنين" },
+  { id: "tuesday", label: "تلات" },
+  { id: "wednesday", label: "أربع" },
+  { id: "thursday", label: "خميس" },
+  { id: "friday", label: "جمعة" },
+];
+
 const initialState: MentorApplyResult = { error: null };
 
 export function MentorApplyForm() {
@@ -78,9 +88,64 @@ export function MentorApplyForm() {
             <input name="studentAgeMax" type="number" required min={10} max={100} placeholder="لحد" className="h-11 rounded-xl border border-border px-3 text-[.9rem] outline-none focus:border-primary" />
           </div>
         </div>
+
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[.88rem] font-bold text-slate-600">مجالاتك (افصل بينهم بفاصلة)</span>
+          <input
+            name="expertiseAreas" required placeholder="مثال: React, Accessibility, أمن الشبكات"
+            className="h-11 rounded-xl border border-border px-3 text-[.9rem] outline-none focus:border-primary"
+          />
+        </label>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[.88rem] font-bold text-slate-600">لينك بورتفوليو (اختياري)</span>
+            <input name="portfolioUrl" type="url" dir="ltr" placeholder="https://…" className="h-11 rounded-xl border border-border px-3 text-[.9rem] outline-none focus:border-primary" />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[.88rem] font-bold text-slate-600">لينك GitHub (اختياري)</span>
+            <input name="githubUrl" type="url" dir="ltr" placeholder="https://github.com/…" className="h-11 rounded-xl border border-border px-3 text-[.9rem] outline-none focus:border-primary" />
+          </label>
+        </div>
       </FormSection>
 
-      <FormSection step={3} title="الأمان والمسؤولية">
+      <FormSection step={3} title="جدولك">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[.88rem] font-bold text-slate-600">الأيام اللي تقدر تعلّم فيها</span>
+          <div className="flex flex-wrap gap-2">
+            {DAYS.map((d) => (
+              <label key={d.id} className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[.82rem] font-semibold text-slate-600">
+                <input name="preferredDays" type="checkbox" value={d.id} />
+                {d.label}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[.88rem] font-bold text-slate-600">الوقت المفضّل (اختياري)</span>
+            <input name="preferredTime" placeholder="مثال: 6-8 مساءً" className="h-11 rounded-xl border border-border px-3 text-[.9rem] outline-none focus:border-primary" />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[.88rem] font-bold text-slate-600">التوقيت الزمني</span>
+            <input name="timezone" defaultValue="Africa/Cairo" className="h-11 rounded-xl border border-border px-3 text-[.9rem] outline-none focus:border-primary" />
+          </label>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[.88rem] font-bold text-slate-600">ساعات تفرّغ تقريبية أسبوعيًا (اختياري)</span>
+            <input name="weeklyAvailabilityHours" type="number" min={1} step="0.5" className="h-11 rounded-xl border border-border px-3 text-[.9rem] outline-none focus:border-primary" />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[.88rem] font-bold text-slate-600">حجم الدفعة المفضّل (اختياري)</span>
+            <input name="preferredCohortSize" type="number" min={1} className="h-11 rounded-xl border border-border px-3 text-[.9rem] outline-none focus:border-primary" />
+          </label>
+        </div>
+      </FormSection>
+
+      <FormSection step={4} title="الأمان والمسؤولية">
         <label className="flex flex-col gap-1.5">
           <span className="text-[.88rem] font-bold text-slate-600">إيميل ولي الأمر</span>
           <input name="guardianEmail" type="email" required placeholder="guardian@example.com" className="h-11 rounded-xl border border-border px-3 text-[.9rem] outline-none focus:border-primary" />

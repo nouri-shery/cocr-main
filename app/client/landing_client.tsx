@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, ArrowLeft, Clock, PlayCircle, Star, Check } from "lucide-react";
+import { Menu, ArrowLeft, Clock, PlayCircle, Star, Check, Bell } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import {
@@ -13,6 +13,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { getCourses } from "../actions/landing_page_actions";
+import { getMyNotifications, markNotificationRead, markAllNotificationsRead, type Notification } from "../actions/notifications_actions";
 import { Course, CourseCategory, Faq, GrowthRung } from "../types/types";
 import { cn } from "@/lib/utils";
 
@@ -113,9 +114,106 @@ const AUTH_NAV_LINKS = [
  * المنصة، مش نفس تجربة الطالب بالظبط */
 const MENTOR_NAV_LINK = { href: "/mentor", label: "مينتور" };
 
+/** جرس الإشعارات — بيانات حقيقية من notifications_actions (migration 0018)،
+ * مش عداد وهمي. العدّاد الابتدائي بييجي من السيرفر (layout.tsx)، والقايمة
+ * نفسها بتتجاب أول ما الجرس يتفتح بس (مش على كل تحميل صفحة) */
+function NotificationBell({ initialCount }: { initialCount: number }) {
+  const [open, setOpen] = React.useState(false);
+  const [items, setItems] = React.useState<Notification[] | null>(null);
+  const [unread, setUnread] = React.useState(initialCount);
+  const [loading, setLoading] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [open]);
+
+  async function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && items === null) {
+      setLoading(true);
+      const data = await getMyNotifications(10);
+      setItems(data);
+      setLoading(false);
+    }
+  }
+
+  async function handleRead(id: string) {
+    setItems((prev) => prev?.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n)) ?? prev);
+    setUnread((c) => Math.max(0, c - 1));
+    await markNotificationRead(id);
+  }
+
+  async function handleReadAll() {
+    setUnread(0);
+    setItems((prev) => prev?.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })) ?? prev);
+    await markAllNotificationsRead();
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label="الإشعارات"
+        className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-cream hover:text-primary"
+      >
+        <Bell className="h-[18px] w-[18px]" />
+        {unread > 0 && (
+          <span className="absolute -top-0.5 -end-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[.62rem] font-extrabold text-white">
+            {unread > 9 ? "9+" : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute end-0 top-[calc(100%+10px)] z-50 w-[min(21rem,calc(100vw-2rem))] rounded-2xl border border-border bg-white p-2 shadow-[0_24px_50px_-26px_rgba(22,24,31,.6)]">
+          <div className="flex items-center justify-between px-2 py-1.5">
+            <span className="text-[.85rem] font-extrabold">الإشعارات</span>
+            {unread > 0 && (
+              <button type="button" onClick={handleReadAll} className="text-[.75rem] font-bold text-primary">
+                علّم الكل مقروء
+              </button>
+            )}
+          </div>
+          <div className="max-h-80 overflow-y-auto">
+            {loading && <p className="px-2 py-4 text-center text-[.8rem] text-muted-foreground">لحظة...</p>}
+            {!loading && items?.length === 0 && (
+              <p className="px-2 py-4 text-center text-[.8rem] text-muted-foreground">مفيش إشعارات لسه.</p>
+            )}
+            {!loading && items?.map((n) => (
+              <Link
+                key={n.id}
+                href={n.link ?? "#"}
+                onClick={() => { setOpen(false); if (!n.read_at) handleRead(n.id); }}
+                className={cn(
+                  "block rounded-xl px-2.5 py-2.5 text-start transition-colors hover:bg-cream",
+                  !n.read_at && "bg-blue-tint",
+                )}
+              >
+                <span className="block text-[.83rem] font-bold">{n.title}</span>
+                {n.body && <span className="mt-0.5 line-clamp-2 block text-[.76rem] text-muted-foreground">{n.body}</span>}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Navbar({
-  isAuthenticated = false, displayName = null, isApprovedMentor = false,
-}: { isAuthenticated?: boolean; displayName?: string | null; isApprovedMentor?: boolean } = {}) {
+  isAuthenticated = false, displayName = null, isApprovedMentor = false, initialUnreadNotifications = 0,
+}: {
+  isAuthenticated?: boolean; displayName?: string | null; isApprovedMentor?: boolean;
+  initialUnreadNotifications?: number;
+} = {}) {
   const [open, setOpen] = React.useState(false);
   const pathname = usePathname();
   const isHome = pathname === "/";
@@ -176,6 +274,7 @@ export function Navbar({
           <div className="hidden items-center gap-3 lg:flex">
             {isAuthenticated ? (
               <>
+                <NotificationBell initialCount={initialUnreadNotifications} />
                 <Link href="/saved" className="text-[.9rem] font-semibold text-muted-foreground transition-colors hover:text-primary">
                   المفتكرة
                 </Link>
@@ -195,10 +294,15 @@ export function Navbar({
             )}
           </div>
 
+          {isAuthenticated && (
+            <div className="ms-auto lg:hidden">
+              <NotificationBell initialCount={initialUnreadNotifications} />
+            </div>
+          )}
           <button
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open} aria-controls="mobile-nav" aria-label="فتح القائمة"
-            className="ms-auto rounded-xl border border-border bg-white p-2.5 lg:hidden"
+            className={cn("rounded-xl border border-border bg-white p-2.5 lg:hidden", !isAuthenticated && "ms-auto")}
           >
             <Menu className="h-5 w-5" />
           </button>

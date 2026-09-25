@@ -136,8 +136,11 @@ export async function CourseDetailContent({ id }: { id: string }) {
   const a = ACCENT[course.accent];
   const FormatIcon = FORMAT_ICON[course.format];
   const sessions = sessionsSummary(course);
-  const alreadyStarted = enrollments.some((e) => e.course_id === course.id);
-  const courseCompleted = alreadyStarted && progress.total > 0 && progress.completed === progress.total;
+  const enrollment = enrollments.find((e) => e.course_id === course.id);
+  const alreadyStarted = !!enrollment;
+  // متخزّن فعليًا (course_enrollments.completed_at) مش محسوب من progress
+  // live — الـ trigger في migration 0014 هو اللي بيحدده، مش الصفحة دي
+  const courseCompleted = !!enrollment?.completed_at;
   const graduationSubmission = courseCompleted && user ? await getMyGraduationSubmission(course.id) : null;
 
   const [courseSessions, myMentorApplication] = user

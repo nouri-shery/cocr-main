@@ -80,11 +80,14 @@ export async function getCourseProgress(courseId: string): Promise<CourseProgres
 
   if (!user) return { completed: 0, total: total ?? 0 };
 
+  // بنعد بس الدروس اللي لسه منشورة فعلاً — نفس تعريف getMyProgressForCourses،
+  // عشان completed متتخطاش total لو حد Admin عمل unpublish لدرس اتخلّص قبل كده
   const { count: completed } = await supabase
     .from("catalog_lesson_progress")
-    .select("id", { count: "exact", head: true })
+    .select("id, catalog_lessons!inner(published)", { count: "exact", head: true })
     .eq("user_id", user.id)
-    .eq("course_id", courseId);
+    .eq("course_id", courseId)
+    .eq("catalog_lessons.published", true);
 
   return { completed: completed ?? 0, total: total ?? 0 };
 }

@@ -6,6 +6,8 @@ import { getMyEnrollments } from "../actions/profile_actions";
 import { getMyProjects, getMyRecentFeedback, getMyGivenFeedbackCount } from "../actions/projects_actions";
 import { getMyProgressForCourses, getNextLessonForCourse } from "../actions/lessons_actions";
 import { getMyMentorApplication } from "../actions/mentor_actions";
+import { getMyAchievementCount } from "../actions/achievements_actions";
+import { getMyCertificateCount } from "../actions/certificates_actions";
 import { getUpcomingSessionForCourses, getUpcomingSessionsListForCourses, type CourseSession } from "../actions/course_sessions_actions";
 import type { JourneySignals } from "../client/journey_client";
 import { SiteFooter } from "./landingserver";
@@ -31,7 +33,10 @@ export async function DashboardPageContent() {
   const user = await getCurrentUser().catch(() => null);
   if (!user) redirect("/login?next=/dashboard");
 
-  const [opportunities, courses, mentors, enrollments, projects, recentFeedback, givenFeedbackCount, mentorApplication] = await Promise.all([
+  const [
+    opportunities, courses, mentors, enrollments, projects, recentFeedback, givenFeedbackCount,
+    mentorApplication, achievementCount, certificateCount,
+  ] = await Promise.all([
     getOpportunities(),
     getCourses(),
     getMentors(),
@@ -40,6 +45,8 @@ export async function DashboardPageContent() {
     getMyRecentFeedback(3),
     getMyGivenFeedbackCount(),
     getMyMentorApplication(),
+    getMyAchievementCount(),
+    getMyCertificateCount(),
   ]);
 
   const displayName = (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "";
@@ -122,6 +129,8 @@ export async function DashboardPageContent() {
     enrollments: enrollments.length,
     publishedProjects: projects.filter((p) => p.status === "published").length,
     feedbackGiven: givenFeedbackCount,
+    achievements: achievementCount,
+    certificates: certificateCount,
   };
 
   return (

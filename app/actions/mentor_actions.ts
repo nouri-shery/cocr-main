@@ -14,16 +14,26 @@ export interface MyMentorApplication {
   student_age_min: number;
   student_age_max: number;
   guardian_email: string;
-  status: "pending" | "approved" | "rejected" | "suspended";
+  status: "pending" | "approved" | "rejected" | "suspended" | "needs_changes";
   notes: string | null;
   created_at: string;
+  expertise_areas: string[];
+  portfolio_url: string | null;
+  github_url: string | null;
+  preferred_days: string[];
+  preferred_time: string | null;
+  timezone: string | null;
+  weekly_availability_hours: number | null;
+  preferred_cohort_size: number | null;
 }
 
 export interface MentorApplyResult {
   error: string | null;
 }
 
-const APPLICATION_COLUMNS = "id, track, motivation, prior_projects, gender, age, student_age_min, student_age_max, guardian_email, status, notes, created_at";
+const APPLICATION_COLUMNS = "id, track, motivation, prior_projects, gender, age, student_age_min, student_age_max, guardian_email, status, notes, created_at, expertise_areas, portfolio_url, github_url, preferred_days, preferred_time, timezone, weekly_availability_hours, preferred_cohort_size";
+
+const PREFERRED_DAYS = ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday"] as const;
 
 /** بترجّع آخر طلب انضمام كمينتور بتاع المستخدم الحالي، لو موجود */
 export async function getMyMentorApplication(): Promise<MyMentorApplication | null> {
@@ -59,6 +69,18 @@ export async function applyToBeMentor(
   const zoomConsent = formData.get("zoomConsent") === "on";
   const followupCommitment = formData.get("followupCommitment") === "on";
 
+  const expertiseAreas = String(formData.get("expertiseAreas") ?? "")
+    .split(",").map((s) => s.trim()).filter(Boolean).slice(0, 10);
+  const portfolioUrl = String(formData.get("portfolioUrl") ?? "").trim().slice(0, 500) || null;
+  const githubUrl = String(formData.get("githubUrl") ?? "").trim().slice(0, 500) || null;
+  const preferredDays = formData.getAll("preferredDays").map(String).filter((d) => (PREFERRED_DAYS as readonly string[]).includes(d));
+  const preferredTime = String(formData.get("preferredTime") ?? "").trim().slice(0, 50) || null;
+  const timezone = String(formData.get("timezone") ?? "Africa/Cairo").trim().slice(0, 50) || null;
+  const weeklyAvailabilityRaw = formData.get("weeklyAvailabilityHours");
+  const weeklyAvailabilityHours = weeklyAvailabilityRaw ? Number(weeklyAvailabilityRaw) : null;
+  const preferredCohortSizeRaw = formData.get("preferredCohortSize");
+  const preferredCohortSize = preferredCohortSizeRaw ? Number(preferredCohortSizeRaw) : null;
+
   if (!track) return { error: "لازم تختاري التراك اللي عايزة تكوني مينتور فيه." };
   if (motivation.length < 20) return { error: "اكتبي سطرين أكتر عن سبب رغبتك تبقي مينتور." };
   if (gender !== "male" && gender !== "female") return { error: "لازم تحددي انتي بنت ولا ولد." };
@@ -72,6 +94,15 @@ export async function applyToBeMentor(
   if (!safetyPolicy) return { error: "لازم توافقي على سياسة الأمان عشان تكملي." };
   if (!zoomConsent) return { error: "لازم توافقي على شرح السيشنز عبر زوم عشان تكملي." };
   if (!followupCommitment) return { error: "لازم تأكيد المتابعة مع الطلاب طول الكورس عشان تكملي." };
+  if (expertiseAreas.length === 0) return { error: "اكتبي مجال أو اتنين إنتي فاهماهم كويس." };
+  if (portfolioUrl && !/^https?:\/\/\S+$/.test(portfolioUrl)) return { error: "لينك البورتفوليو لازم يبدأ بـ http:// أو https://." };
+  if (githubUrl && !/^https?:\/\/\S+$/.test(githubUrl)) return { error: "لينك GitHub لازم يبدأ بـ http:// أو https://." };
+  if (weeklyAvailabilityHours !== null && (!Number.isFinite(weeklyAvailabilityHours) || weeklyAvailabilityHours <= 0)) {
+    return { error: "عدد ساعات التفرّغ الأسبوعية لازم يكون رقم موجب." };
+  }
+  if (preferredCohortSize !== null && (!Number.isInteger(preferredCohortSize) || preferredCohortSize <= 0)) {
+    return { error: "حجم الدفعة المفضّل لازم يكون رقم صحيح موجب." };
+  }
 
   const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
@@ -94,6 +125,14 @@ export async function applyToBeMentor(
       agreed_to_safety_policy: true,
       agreed_to_zoom_sessions: true,
       agreed_to_followup_commitment: true,
+      expertise_areas: expertiseAreas,
+      portfolio_url: portfolioUrl,
+      github_url: githubUrl,
+      preferred_days: preferredDays,
+      preferred_time: preferredTime,
+      timezone,
+      weekly_availability_hours: weeklyAvailabilityHours,
+      preferred_cohort_size: preferredCohortSize,
     });
 
   if (error) return { error: "حصل خطأ، جرّب تاني بعد شوية." };

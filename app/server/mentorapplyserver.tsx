@@ -10,11 +10,13 @@ import { Check, ShieldCheck } from "lucide-react";
 const STATUS_LABEL: Record<string, string> = {
   rejected: "طلبك اتفض دلوقتي",
   suspended: "حساب المينتور بتاعك متعلّق دلوقتي",
+  needs_changes: "طلبك محتاج تعديل — اقرأ ملاحظة الفريق وابعت طلب جديد",
 };
 
 const STATUS_STYLE: Record<string, string> = {
   rejected: "bg-destructive/10 text-destructive",
   suspended: "bg-destructive/10 text-destructive",
+  needs_changes: "bg-gold-50 text-gold-600",
 };
 
 const TRACKER_STEPS = ["اتبعت", "قيد المراجعة", "اتوافق عليه"] as const;
@@ -107,6 +109,14 @@ export async function BecomeMentorContent() {
           </div>
         ) : (
           <MentorApplyForm />
+        )}
+
+        {/* محتاج تعديل مش حالة نهائية زي rejected — الطالب لازم يقدر
+            يبعت طلب جديد بعد ما يقرا الملاحظة، مش يقف هنا للأبد */}
+        {application?.status === "needs_changes" && (
+          <div className="mt-6">
+            <MentorApplyForm />
+          </div>
         )}
       </div>
     </main>

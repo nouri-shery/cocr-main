@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, Calendar, ClipboardCheck, Star, Users } from "lucide-react";
+import { ArrowLeft, Calendar, ClipboardCheck, Star, Users, BookOpen, GraduationCap } from "lucide-react";
 import { getCurrentUser } from "@/lib/supabase/get-user";
 import { Icon3D } from "@/components/homecomponent/icon-sprite";
 import { resolveAvatarSrc } from "../lib/avatar-gallery";
@@ -9,6 +9,9 @@ import { getMyMentorApplication } from "../actions/mentor_actions";
 import { getMyProfile } from "../actions/profile_actions";
 import { getSubmissionsForMentor, getMyMentorRatingSummary } from "../actions/submissions_actions";
 import { getUpcomingSessionsForMentor } from "../actions/course_sessions_actions";
+import { getMyCourseProposals } from "../actions/course_proposals_actions";
+import { getMyCohorts } from "../actions/course_cohorts_actions";
+import { getGraduationSubmissionsForMentor } from "../actions/graduation_reviews_actions";
 import { SubmissionReviewRow } from "../client/mentor_inbox_client";
 import { MentorShell } from "./mentorshell";
 import { SiteFooter } from "./landingserver";
@@ -30,16 +33,34 @@ export async function MentorHomeContent() {
   const application = await getMyMentorApplication();
   if (application?.status !== "approved") redirect("/become-a-mentor");
 
-  const [submissions, ratingSummary, upcomingSessionRows, profile] = await Promise.all([
+  const [submissions, ratingSummary, upcomingSessionRows, profile, myCourses, myCohorts, graduationSubmissions] = await Promise.all([
     getSubmissionsForMentor(),
     getMyMentorRatingSummary(),
     getUpcomingSessionsForMentor(),
     getMyProfile(),
+    getMyCourseProposals(),
+    getMyCohorts(),
+    getGraduationSubmissionsForMentor(),
   ]);
 
   const students = groupByStudent(submissions);
   const pendingCount = submissions.filter((s) => !s.feedback_given).length;
   const pendingSubmissions = submissions.filter((s) => !s.feedback_given).slice(0, 2);
+
+  const activeCohorts = myCohorts.filter((c) => c.status === "published" || c.status === "in_progress");
+  const draftCourses = myCourses.filter((c) => c.status === "draft" || c.status === "needs_changes");
+  const inReviewCourses = myCourses.filter((c) => ["submitted", "content_review", "technical_review"].includes(c.status));
+
+  // خطوتك الجاية — حاجة واحدة واضحة، مش قايمة طويلة
+  const nextAction = draftCourses.length > 0
+    ? { label: `كمّل بناء "${draftCourses[0].title}"`, href: `/mentor/courses/${draftCourses[0].id}` }
+    : graduationSubmissions.length > 0
+      ? { label: `${graduationSubmissions.length} مشروع تخرّج مستنياك`, href: "/mentor#graduation" }
+      : pendingCount > 0
+        ? { label: `${pendingCount} تسليم مستنياك مراجعة`, href: "/mentor/submissions" }
+        : myCourses.length === 0
+          ? { label: "ابدأ أول كورس ليك", href: "/mentor/courses" }
+          : null;
 
   const displayName = (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "";
   const firstName = displayName.split(" ")[0] || "";
@@ -72,18 +93,55 @@ export async function MentorHomeContent() {
         </section>
 
         <div className="flex flex-col gap-8">
-          <div className="grid gap-4 sm:grid-cols-4">
-            <StatCard delay={60} icon={<ClipboardCheck className="h-4.5 w-4.5" />} value={String(pendingCount)} label="تسليمات مستنياك" href="/mentor/submissions" tone={pendingCount > 0} />
-            <StatCard delay={110} icon={<Users className="h-4.5 w-4.5" />} value={String(students.length)} label="طلاب تعاملت معاهم" href="/mentor/students" tone={students.length > 0} />
-            <StatCard delay={160} icon={<Calendar className="h-4.5 w-4.5" />} value={String(upcomingSessionRows.length)} label="سيشنز جاية" href="/mentor/sessions" tone={upcomingSessionRows.length > 0} />
+          {nextAction && (
+            <Link
+              href={nextAction.href}
+              className="animate-fade-up flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-blue-tint px-5 py-4 transition-all hover:-translate-y-0.5"
+            >
+              <span className="text-[.9rem] font-extrabold text-primary">{nextAction.label}</span>
+              <ArrowLeft className="h-4 w-4 shrink-0 text-primary" />
+            </Link>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard delay={20} icon={<BookOpen className="h-4.5 w-4.5" />} value={String(draftCourses.length + inReviewCourses.length)} label="كورسات بتبنيها" href="/mentor/courses" tone={draftCourses.length > 0} />
+            <StatCard delay={40} icon={<Users className="h-4.5 w-4.5" />} value={String(activeCohorts.length)} label="دفعات فعّالة" href="/mentor/courses" tone={activeCohorts.length > 0} />
+            <StatCard delay={60} icon={<GraduationCap className="h-4.5 w-4.5" />} value={String(graduationSubmissions.length)} label="مشاريع تخرّج مستنياك" tone={graduationSubmissions.length > 0} />
+            <StatCard delay={80} icon={<ClipboardCheck className="h-4.5 w-4.5" />} value={String(pendingCount)} label="تسليمات مستنياك" href="/mentor/submissions" tone={pendingCount > 0} />
+            <StatCard delay={100} icon={<Users className="h-4.5 w-4.5" />} value={String(students.length)} label="طلاب تعاملت معاهم" href="/mentor/students" tone={students.length > 0} />
+            <StatCard delay={120} icon={<Calendar className="h-4.5 w-4.5" />} value={String(upcomingSessionRows.length)} label="سيشنز جاية" href="/mentor/sessions" tone={upcomingSessionRows.length > 0} />
             <StatCard
-              delay={210}
+              delay={140}
               icon={<Star className="h-4.5 w-4.5" />}
               value={ratingSummary.average !== null ? `${ratingSummary.average} / 5` : "—"}
               label={ratingSummary.count > 0 ? `من ${ratingSummary.count} تقييم` : "لسه مفيش تقييمات"}
               tone={false}
             />
           </div>
+
+          {graduationSubmissions.length > 0 && (
+            <section id="graduation" className="animate-fade-up" style={{ animationDelay: "150ms" }}>
+              <h2 className="mb-4 text-[1.1rem] font-extrabold">مشاريع تخرّج مستنياك</h2>
+              <div className="flex flex-col gap-3">
+                {graduationSubmissions.map((g) => (
+                  <div key={g.id} className="rounded-2xl border border-border bg-white p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <b className="text-[.9rem] font-extrabold">{g.student?.display_name ?? "طالب"}</b>
+                      {g.latest_decision === "changes_requested" && (
+                        <span className="rounded-full bg-gold-50 px-2.5 py-1 text-[.72rem] font-extrabold text-gold-600">أعاد التسليم</span>
+                      )}
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap text-[.85rem] text-muted-foreground">{g.content}</p>
+                    {g.file_url && (
+                      <a href={g.file_url} target="_blank" rel="noopener noreferrer" dir="ltr" className="mt-1 inline-block text-[.82rem] font-bold text-primary hover:underline">
+                        الرابط ↗
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="animate-fade-up" style={{ animationDelay: "260ms" }}>
             <div className="mb-4 flex items-center justify-between">
@@ -113,7 +171,7 @@ export async function MentorHomeContent() {
             <ul className="flex flex-col gap-2 text-[.82rem] text-muted-foreground">
               <li>• رسائل مباشرة مع الطلاب — محتاجة قرار أمان صريح الأول (منصة فيها قصّر)، مش مجرد فيتشر تقني</li>
               <li>• تذكير تلقائي بالإيميل للطلاب — محتاج نظام إيميل لسه مش موجود</li>
-              <li>• مراجعة مشاريع الطلاب من هنا — نظام المشاريع لسه منفصل عمدًا عن نظام المينتور</li>
+              <li>• تسجيل حضور من صفحة السيشن مباشرة — لسه هيتبني</li>
               <li>• تقارير وتحليلات — محتاجة نحدد الأرقام المفيدة فعلًا الأول، مش نعمل رسومات لمجرد الشكل</li>
             </ul>
           </section>

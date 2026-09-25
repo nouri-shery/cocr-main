@@ -59,7 +59,7 @@ export async function MentorCoursesContent() {
           {myProposals.length > 0 && (
             <div className="mb-5 flex flex-col gap-2">
               {myProposals.map((p) => (
-                <div key={p.id} className="rounded-xl bg-blue-50 p-3">
+                <Link key={p.id} href={`/mentor/courses/${p.id}`} className="block rounded-xl bg-blue-50 p-3 transition-colors hover:bg-blue-tint">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-[.86rem] font-extrabold">{p.title}</span>
                     <span className={`shrink-0 rounded-full px-2.5 py-1 text-[.72rem] font-extrabold ${PROPOSAL_STATUS_STYLE[p.status]}`}>
@@ -67,7 +67,7 @@ export async function MentorCoursesContent() {
                     </span>
                   </div>
                   {p.notes && <p className="mt-1.5 text-[.78rem] text-muted-foreground">ملاحظة الفريق: {p.notes}</p>}
-                </div>
+                </Link>
               ))}
             </div>
           )}

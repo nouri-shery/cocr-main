@@ -4,8 +4,8 @@ import * as React from "react";
 import { useActionState } from "react";
 import Link from "next/link";
 import {
-  LogOut, Pencil, GraduationCap, Check, BookOpen, Hammer, MessageSquare,
-  User, Trophy, Calendar, Clock,
+  LogOut, Pencil, GraduationCap, BookOpen, Hammer, MessageSquare,
+  User, Trophy, Calendar, Clock, Compass, Send, Medal, BadgeCheck, HeartHandshake, Star, Lock, Award,
 } from "lucide-react";
 import { signOut } from "@/components/homecomponent/auth/actions";
 import { updateProfile, setAvatarChoice, type ProfileActionResult } from "../actions/profile_actions";
@@ -18,6 +18,8 @@ import { AVATARS, resolveAvatarSrc } from "../lib/avatar-gallery";
 import type { Course, Mentor, OpportunityListing } from "../types/types";
 import type { Project, RecentFeedback } from "../actions/projects_actions";
 import type { CourseProgress } from "../actions/lessons_actions";
+import type { AchievementStatus } from "../actions/achievements_actions";
+import type { MyCertificate } from "../actions/certificates_actions";
 
 const initialState: ProfileActionResult = { error: null };
 
@@ -58,6 +60,7 @@ export function ProfileClient({
   name, email, bio, skills, stage, gender, userId, avatarId, interests, goal,
   startedCourses, progressByCourse, mentorById, projects, givenFeedback, givenFeedbackCount,
   savedOpportunities, upcomingSessions, memberSince, journeySignals, activity, isApprovedMentor,
+  achievements, certificates,
 }: {
   name: string; email: string; bio: string; skills: string[];
   stage: string | null; gender: "male" | "female" | null; userId: string; avatarId: string | null;
@@ -71,6 +74,8 @@ export function ProfileClient({
   journeySignals: JourneySignals;
   activity: ActivityEvent[];
   isApprovedMentor: boolean;
+  achievements: AchievementStatus[];
+  certificates: MyCertificate[];
 }) {
   const [tab, setTab] = React.useState<TabId>("info");
   const [editing, setEditing] = React.useState(false);
@@ -338,7 +343,29 @@ export function ProfileClient({
             <JourneyFull signals={journeySignals} />
           </SectionCard>
           <SectionCard title="إنجازاتك">
-            <AchievementBadges signals={journeySignals} />
+            <AchievementBadges achievements={achievements} />
+          </SectionCard>
+          <SectionCard title="شهاداتك">
+            {certificates.length === 0 ? (
+              <EmptyRow text="لسه معندكش شهادات — خلّصي كل دروس كورس عشان تاخدي واحدة أوتوماتيك." linkHref="/courses" linkLabel="استكشفي الكورسات" />
+            ) : (
+              <div className="flex flex-col gap-3">
+                {certificates.map((c) => (
+                  <Link
+                    key={c.id}
+                    href={`/verify/${c.certificate_number}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border p-3 hover:border-primary/40"
+                  >
+                    <span className="flex items-center gap-2 text-[.86rem] font-bold">
+                      <Award className="h-4 w-4 shrink-0 text-gold-600" /> {c.course_title}
+                    </span>
+                    <span className="shrink-0 text-[.76rem] text-muted-foreground">
+                      {c.status === "revoked" ? "اتلغت" : new Date(c.issued_at).toLocaleDateString("ar-EG", { day: "numeric", month: "short" })}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </SectionCard>
           <SectionCard title="بتساهم">
             {givenFeedback.length === 0 ? (
@@ -491,24 +518,43 @@ function EmptyRow({ text, linkHref, linkLabel }: { text: string; linkHref: strin
   );
 }
 
-/** بادچات الإنجازات — نفس مراحل الرحلة (Journey)، بس معروضة كـ grid مضغوط.
- * كل بادچ إما اتحقّق فعليًا أو لسه — مفيش رقم مُلفَّق ولا قفل "قريبًا" عام */
-function AchievementBadges({ signals }: { signals: JourneySignals }) {
-  const { stages } = computeJourney(signals);
+const ACHIEVEMENT_ICON: Record<string, React.ElementType> = {
+  compass: Compass,
+  book: BookOpen,
+  send: Send,
+  hammer: Hammer,
+  medal: Medal,
+  "badge-check": BadgeCheck,
+  "heart-handshake": HeartHandshake,
+  star: Star,
+};
+
+/** بادچات إنجازات حقيقية — من جدول achievements/user_achievements
+ * (migration 0017)، مش من مراحل الرحلة. كل بادچ إما اتحقّق فعليًا بحدث
+ * حقيقي أو لسه مقفول — مفيش رقم مُلفَّق */
+function AchievementBadges({ achievements }: { achievements: AchievementStatus[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-      {stages.map((s) => (
-        <div
-          key={s.id}
-          className={cn(
-            "flex flex-col items-center gap-2 rounded-2xl border px-3 py-5 text-center",
-            s.achieved ? "border-primary/30 bg-blue-tint" : "border-dashed border-border opacity-60",
-          )}
-        >
-          {s.achieved ? <Check className="h-7 w-7 text-primary" /> : <Icon3D name="build" className="h-7 w-7" />}
-          <span className="text-[.78rem] font-bold text-muted-foreground">{s.label}</span>
-        </div>
-      ))}
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {achievements.map((a) => {
+        const Icon = ACHIEVEMENT_ICON[a.icon] ?? Trophy;
+        return (
+          <div
+            key={a.key}
+            className={cn(
+              "flex flex-col items-center gap-2 rounded-2xl border px-3 py-5 text-center",
+              a.earned ? "border-primary/30 bg-blue-tint" : "border-dashed border-border opacity-60",
+            )}
+          >
+            {a.earned ? <Icon className="h-7 w-7 text-primary" /> : <Lock className="h-7 w-7 text-slate-400" />}
+            <span className="text-[.78rem] font-bold text-muted-foreground">{a.title}</span>
+            {a.earned && a.earned_at && (
+              <span className="text-[.7rem] text-slate-400">
+                {new Date(a.earned_at).toLocaleDateString("ar-EG", { day: "numeric", month: "short" })}
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

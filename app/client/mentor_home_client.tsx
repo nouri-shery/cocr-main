@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import { useActionState } from "react";
+import { useRouter } from "next/navigation";
 import { Video, Send } from "lucide-react";
 import { scheduleCourseSession, type SessionSaveResult } from "../actions/course_sessions_actions";
-import { submitCourseProposal, type CourseProposalResult } from "../actions/course_proposals_actions";
+import { createDraftCourse, type CourseProposalResult } from "../actions/course_proposals_actions";
 import type { Course } from "../types/types";
 
 const initialState: SessionSaveResult = { error: null };
@@ -82,36 +83,45 @@ export function CreateSessionForm({ myCourses }: { myCourses: Course[] }) {
 }
 
 export const PROPOSAL_STATUS_LABEL: Record<string, string> = {
-  pending: "قيد المراجعة",
+  draft: "مسودّة",
+  submitted: "اتبعت للمراجعة",
+  content_review: "قيد مراجعة المحتوى",
+  technical_review: "قيد المراجعة الفنية",
+  needs_changes: "محتاج تعديل",
   approved: "اتوافق عليه",
+  published: "منشور",
+  archived: "مؤرشف",
   rejected: "اتفض",
 };
 export const PROPOSAL_STATUS_STYLE: Record<string, string> = {
-  pending: "bg-gold-50 text-gold-600",
+  draft: "bg-muted text-muted-foreground",
+  submitted: "bg-gold-50 text-gold-600",
+  content_review: "bg-gold-50 text-gold-600",
+  technical_review: "bg-gold-50 text-gold-600",
+  needs_changes: "bg-gold-50 text-gold-600",
   approved: "bg-green-50 text-green",
+  published: "bg-green-50 text-green",
+  archived: "bg-muted text-muted-foreground",
   rejected: "bg-destructive/10 text-destructive",
 };
 
-/** طلب مينتور إنه يعمل كورس جديد — مش نشر مباشر، ده request بيراجعه فريق
- * COCR (نفس منطق طلب الانضمام كمينتور بالظبط) */
+/** بداية كورس جديد — مسودّة بس لسه (draft)، المينتور بعد كده بيبني المنهج
+ * كامل قبل ما يقدّمه للمراجعة. مختلف عن الفورم القديمة اللي كانت بتبعت
+ * pitch بسيط وخلاص — دلوقتي بداية مساحة بناء كورس حقيقية */
 export function CreateCourseProposalForm({ track }: { track: string }) {
-  const [done, setDone] = React.useState(false);
+  const router = useRouter();
   const action = React.useCallback(async (_prev: CourseProposalResult, formData: FormData): Promise<CourseProposalResult> => {
     const title = String(formData.get("title") ?? "");
     const description = String(formData.get("description") ?? "");
-    const res = await submitCourseProposal(track, title, description);
-    if (!res.error) setDone(true);
+    const res = await createDraftCourse({
+      title, description, track,
+      learningOutcomes: [description.trim().slice(0, 200)].filter(Boolean),
+      skills: [], ageMin: null, ageMax: null, prerequisites: "", weeklyWorkloadHours: null, level: "",
+    });
+    if (!res.error && res.id) router.push(`/mentor/courses/${res.id}`);
     return res;
-  }, [track]);
+  }, [track, router]);
   const [state, formAction, pending] = useActionState(action, initialProposalState);
-
-  if (done) {
-    return (
-      <p className="rounded-2xl border border-primary/30 bg-blue-tint px-5 py-4 text-center text-[.86rem] font-bold text-primary">
-        طلبك اتبعت ✓ — فريق COCR هيراجعه ويردّلك.
-      </p>
-    );
-  }
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
@@ -125,12 +135,13 @@ export function CreateCourseProposalForm({ track }: { track: string }) {
         <textarea name="description" required rows={3} placeholder="هيغطّي إيه، ومناسب لمين؟"
           className="rounded-xl border border-border p-3 text-[.88rem] outline-none focus:border-primary" />
       </label>
+      <p className="text-[.76rem] text-muted-foreground">هتقدر تكمّل نتائج التعلّم والمنهج والمشروع النهائي في الخطوة الجاية.</p>
       {state.error && <p className="text-[.82rem] font-semibold text-destructive">{state.error}</p>}
       <button
         type="submit" disabled={pending}
         className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[.88rem] font-extrabold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-10px_rgba(30,69,196,.6)] disabled:pointer-events-none disabled:opacity-60"
       >
-        <Send className="h-4 w-4" /> {pending ? "بيتبعت..." : "ابعت الطلب"}
+        <Send className="h-4 w-4" /> {pending ? "بيتعمل..." : "ابدأ بناء الكورس"}
       </button>
     </form>
   );

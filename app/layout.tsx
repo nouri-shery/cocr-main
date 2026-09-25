@@ -43,6 +43,7 @@ import { IconSprite } from "@/components/homecomponent/icon-sprite";
 import { Navbar } from "./client/landing_client";
 import { getCurrentUser } from "@/lib/supabase/get-user";
 import { getMyMentorApplication } from "./actions/mentor_actions";
+import { getUnreadNotificationCount } from "./actions/notifications_actions";
 
 const cairo = Cairo({ subsets: ["arabic", "latin"], weight: ["400","500","600","700","800","900"], variable: "--font-cairo" });
 const inter = Inter({ subsets: ["latin"], weight: ["400","500","600","700","800"], variable: "--font-inter" });
@@ -59,12 +60,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // نفس الدالة المستخدمة في كل صفحات المينتور، مفيش استعلام جديد
   const mentorApplication = user ? await getMyMentorApplication().catch(() => null) : null;
   const isApprovedMentor = mentorApplication?.status === "approved";
+  const unreadNotifications = user ? await getUnreadNotificationCount().catch(() => 0) : 0;
 
   return (
     <html lang="ar" dir="rtl" className={`${cairo.variable} ${inter.variable}`}>
       <body className="overflow-x-hidden antialiased">
         <IconSprite />
-        <Navbar isAuthenticated={!!user} displayName={displayName} isApprovedMentor={isApprovedMentor} />
+        <Navbar
+          isAuthenticated={!!user}
+          displayName={displayName}
+          isApprovedMentor={isApprovedMentor}
+          initialUnreadNotifications={unreadNotifications}
+        />
        <NextIntlClientProvider>{children}</NextIntlClientProvider>
       </body>
     </html>

@@ -11,6 +11,8 @@ import { getMyMentorApplication } from "../actions/mentor_actions";
 import { getMyProgressForCourses } from "../actions/lessons_actions";
 import { getMySavedItemIds } from "../actions/saved_actions";
 import { getUpcomingSessionsListForCourses } from "../actions/course_sessions_actions";
+import { getMyAchievements } from "../actions/achievements_actions";
+import { getMyCertificates } from "../actions/certificates_actions";
 import type { JourneySignals } from "../client/journey_client";
 import type { ActivityEvent } from "../client/profile_client";
 
@@ -21,6 +23,7 @@ export async function ProfilePageContent() {
   const [
     courses, mentors, opportunities, profile, enrollments, projects,
     mentorApplication, givenFeedback, givenFeedbackCount, savedOpportunityIds,
+    achievements, certificates,
   ] = await Promise.all([
     getCourses(),
     getMentors(),
@@ -32,6 +35,8 @@ export async function ProfilePageContent() {
     getMyGivenFeedback(5),
     getMyGivenFeedbackCount(),
     getMySavedItemIds("opportunity"),
+    getMyAchievements(),
+    getMyCertificates(),
   ]);
 
   const name = profile?.display_name || (user.user_metadata?.full_name as string | undefined) || user.email || "طالب COCR";
@@ -118,6 +123,8 @@ export async function ProfilePageContent() {
           journeySignals={journeySignals}
           activity={activity}
           isApprovedMentor={isApprovedMentor}
+          achievements={achievements}
+          certificates={certificates}
         />
       </div>
     </main>

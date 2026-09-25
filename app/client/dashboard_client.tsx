@@ -36,7 +36,7 @@ export function DashboardClient({
   nextMoves: NextMove[];
   upcomingSession: UpcomingSessionCard | null;
   otherUpcomingSessions: UpcomingSessionCard[];
-  stats: { enrollments: number; publishedProjects: number; feedbackGiven: number };
+  stats: { enrollments: number; publishedProjects: number; feedbackGiven: number; achievements: number; certificates: number };
   journeySignals: JourneySignals;
   projects: Project[];
   recentFeedback: RecentFeedback[];
@@ -64,6 +64,8 @@ export function DashboardClient({
               stats.enrollments > 0 && `${stats.enrollments} كورس بدأته`,
               stats.publishedProjects > 0 && `${stats.publishedProjects} مشروع منشور`,
               stats.feedbackGiven > 0 && `${stats.feedbackGiven} ملاحظة قدّمتها`,
+              stats.achievements > 0 && `${stats.achievements} إنجاز`,
+              stats.certificates > 0 && `${stats.certificates} شهادة`,
             ].filter(Boolean).join(" · ")}
           </p>
         )}

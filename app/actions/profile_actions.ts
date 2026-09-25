@@ -23,6 +23,7 @@ export interface Profile {
 export interface Enrollment {
   course_id: string;
   started_at: string;
+  completed_at: string | null;
 }
 
 const PROFILE_COLUMNS = "id, display_name, bio, skills, interests, goal, grade_or_education_stage, gender, avatar_id";
@@ -94,6 +95,11 @@ export async function saveOnboardingData(
     .eq("id", user.id);
 
   if (error) return { error: "حصل خطأ، جرّب تاني بعد شوية." };
+
+  // إنجاز "أول خطوة" — الدالة بتتأكد بنفسها إن البيانات فعلاً اتملت،
+  // مش مجرد استدعاء أعمى. فشلها مش المفروض يكسر حفظ الـ onboarding نفسه
+  await supabase.rpc("award_first_step_achievement");
+
   revalidatePath("/profile");
   revalidatePath("/dashboard");
   revalidatePath("/onboarding");
@@ -157,7 +163,7 @@ export async function getMyEnrollments(): Promise<Enrollment[]> {
 
   const { data } = await supabase
     .from("course_enrollments")
-    .select("course_id, started_at")
+    .select("course_id, started_at, completed_at")
     .eq("user_id", user.id)
     .order("started_at", { ascending: false });
 
